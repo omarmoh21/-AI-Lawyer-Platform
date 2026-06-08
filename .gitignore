@@ -1,0 +1,42 @@
+# ==========================================
+# 1. Python Environment & Core (Essential)
+# ==========================================
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ==========================================
+# 2. Project Secrets & Local Configs
+# ==========================================
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# ==========================================
+# 3. AI / Data / Vector DB / Large Files
+# ==========================================
+# Qdrant local storage
+qdrant_storage/
+qdrant_data/
+
+# Hugging Face caches & downloaded datasets/models
+.cache/
+data/
+datasets/
+models/
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# ==========================================
+# 4. OS Specific Files
+# ==========================================
+.DS_Store
+Thumbs.db
