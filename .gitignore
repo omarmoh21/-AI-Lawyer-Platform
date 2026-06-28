@@ -1,0 +1,80 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- uv ---
+# Lockfile IS committed for apps — do not ignore uv.lock
+# Only ignore local cache, not the lock itself
+.uv/
+
+# --- Environment / secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# --- Jupyter / Colab ---
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+.virtual_documents/
+
+# --- Vector stores / local DB artifacts ---
+chroma_db/
+qdrant_data/
+*.faiss
+*.index
+*.sqlite3
+*.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- OS / editor junk ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Testing / coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Large/binary artifacts you don't want in git ---
+*.pdf
+*.mp3
+*.wav
+*.docx
+media/
+uploads/
+tmp/
