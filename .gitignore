@@ -20,6 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 
+
 # --- Virtual environments ---
 .venv/
 venv/
@@ -78,3 +79,6 @@ htmlcov/
 media/
 uploads/
 tmp/
+
+# --- Claude ---
+.claude/
