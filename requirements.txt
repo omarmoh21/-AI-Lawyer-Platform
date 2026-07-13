@@ -3,16 +3,10 @@ qdrant-client
 fastembed
 sentence-transformers
 torch
-langchain-openai
+langchain-google-genai
 langchain-core
 langgraph
 google-genai
-opencv-python
 pillow
-numpy
-openai
-pandas
 python-dotenv
-sounddevice
-soundfile
 requests

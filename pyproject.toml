@@ -6,8 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "gradio",
-    "langchain-openai",
-    "langchain-anthropic",
+    "langchain-google-genai",
     "langchain-core",
     "langgraph",
     "google-genai",
