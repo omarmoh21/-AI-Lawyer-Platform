@@ -21,10 +21,27 @@ from app.services.ocr.gemini_ocr import extract_text
 
 logger = logging.getLogger(__name__)
 
+# Recent conversation turns, refreshed by run() before each supervisor call,
+# so sub-agents (which are otherwise stateless) can resolve follow-up questions.
+_recent_history: list = []
+_HISTORY_WINDOW = 6
+
+
+def _content_to_text(content) -> str:
+    """Gemini may return message content as a list of blocks instead of str."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(
+            part if isinstance(part, str) else part.get("text", "")
+            for part in content
+        )
+    return str(content)
+
 
 # ── Sub-agent wrappers as tools ────────────────────────────────
 
-@tool
+@tool(return_direct=True)
 def ask_legal_research(
     query: Annotated[str, "السؤال القانوني المطلوب البحث عنه في قاعدة بيانات القوانين المصرية"],
 ) -> str:
@@ -33,10 +50,10 @@ def ask_legal_research(
     استخدم هذه الأداة لأي سؤال يتعلق بالقانون أو العقوبات أو الحقوق.
     """
     result = legal_research_agent.invoke(
-        {"messages": [HumanMessage(content=query)]},
+        {"messages": [*_recent_history, HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
-    return result["messages"][-1].content
+    return _content_to_text(result["messages"][-1].content)
 
 
 @tool
@@ -48,13 +65,13 @@ def ask_document_agent(
     استخدم هذه الأداة عندما يرفع المستخدم صورة أو وثيقة.
     """
     result = document_agent.invoke(
-        {"messages": [HumanMessage(content=query)]},
+        {"messages": [*_recent_history, HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
-    return result["messages"][-1].content
+    return _content_to_text(result["messages"][-1].content)
 
 
-@tool
+@tool(return_direct=True)
 def ask_contract_agent(
     query: Annotated[str, "طلب إنشاء أو تعديل عقد مع البيانات المتوفرة"],
 ) -> str:
@@ -63,7 +80,7 @@ def ask_contract_agent(
     استخدم هذه الأداة لطلبات إنشاء عقود الإيجار أو العمل أو السرية أو البيع.
     """
     result = contract_agent.invoke(
-        {"messages": [HumanMessage(content=query)]},
+        {"messages": [*_recent_history, HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
 
@@ -75,10 +92,10 @@ def ask_contract_agent(
     for msg in result["messages"]:
         name = getattr(msg, "name", None)
         if name == "preview_contract":
-            contract_text = msg.content
+            contract_text = _content_to_text(msg.content)
             break
         if name == "fetch_lawhub_contract":
-            contract_text = msg.content
+            contract_text = _content_to_text(msg.content)
             source_note   = "\n\nالمصدر: الموسوعة القانونية (lawhub.info)"
             break
 
@@ -86,7 +103,7 @@ def ask_contract_agent(
         return contract_text + source_note
 
     # Fallback: return whatever the agent said
-    return result["messages"][-1].content
+    return _content_to_text(result["messages"][-1].content)
 
 
 # ── Supervisor ─────────────────────────────────────────────────
@@ -104,12 +121,19 @@ _SYSTEM = """
    - إذا احتاج تحليل الوثيقة بحثاً قانونياً بعد الاستخراج → استدعِ ask_legal_research أيضاً.
 3. طلب إنشاء عقد أو تحرير عقد → ask_contract_agent
 4. تحويل اللهجة العامية: قبل أي توجيه، حوّل الطلب إلى العربية الفصحى.
+5. صياغة الاستعلام (مهم جداً): اكتب للوكيل المتخصص استعلاماً مكتمل المعنى بذاته:
+   - إذا كان سؤال المستخدم امتداداً لسؤال سابق (مثل: "طيب ولو كان بالإكراه؟")
+     → ادمج سياق المحادثة السابقة في استعلام واحد مكتمل المعنى.
+   - مثال: بعد سؤال عن السرقة، لو قال المستخدم "طيب لو معاه سلاح؟"
+     → الاستعلام الصحيح: "عقوبة السرقة مع حمل سلاح في القانون المصري"
 
 ═══════════════════════════════════════════
                    قواعد عامة
 ═══════════════════════════════════════════
 
 - لا تجب من معرفتك الذاتية — دائماً استخدم الوكيل المناسب.
+- إجابة ask_legal_research نهائية ومنسّقة — أعدها للمستخدم كما هي حرفياً،
+  دون تلخيص أو إعادة صياغة أو حذف النصوص القانونية منها.
 - إذا كان الطلب غير قانوني تماماً → "أنا مساعد قانوني متخصص في القانون المصري فقط."
 - إذا أعادت أداة contract_agent مساراً لملف (ينتهي بـ .docx) → مرّره في ردّك بهذا الشكل:
   [FILE:{مسار الملف}]
@@ -154,23 +178,42 @@ def run(
         content = f"{text}\n\n[نص مستخرج من الصور المرفوعة]\n" + "\n\n".join(ocr_parts)
 
     conv_history.append(HumanMessage(content=content))
+
+    # Refresh the shared history window for sub-agents (exclude the current
+    # message — the supervisor's rewritten query already carries it).
+    _recent_history.clear()
+    _recent_history.extend(conv_history[:-1][-_HISTORY_WINDOW:])
+
     try:
         result = supervisor.invoke(
             {"messages": conv_history},
             config={"recursion_limit": 100},
         )
 
-        # The supervisor's own LLM tends to re-paraphrase the contract text
-        # it receives from ask_contract_agent. Grab the raw tool output
-        # directly instead of trusting the supervisor's final summary.
-        response = None
+        # The supervisor's own LLM tends to re-paraphrase what it receives
+        # from sub-agents. Grab the raw tool output directly instead of
+        # trusting the supervisor's final summary.
+        response    = None
+        legal_parts = []
+        used_tools  = set()
         for msg in result["messages"]:
-            if getattr(msg, "name", None) == "ask_contract_agent":
-                response = msg.content
+            name = getattr(msg, "name", None)
+            if name == "ask_contract_agent":
+                response = _content_to_text(msg.content)
                 break
+            if name == "ask_legal_research":
+                legal_parts.append(_content_to_text(msg.content))
+            if name:
+                used_tools.add(name)
+
+        # Legal-research answers are already fully formatted — return them
+        # verbatim, but only when no other agent contributed (e.g. a document
+        # analysis step), in which case the supervisor's synthesis is needed.
+        if response is None and legal_parts and used_tools == {"ask_legal_research"}:
+            response = "\n\n".join(legal_parts)
 
         if response is None:
-            response = result["messages"][-1].content
+            response = _content_to_text(result["messages"][-1].content)
     except Exception as e:
         logger.error("Supervisor error: %s", e, exc_info=True)
         response = f"⚠️ حدث خطأ أثناء المعالجة: {e}"
