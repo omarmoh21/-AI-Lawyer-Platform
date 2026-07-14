@@ -39,10 +39,8 @@ tmp_uploads/
 *.tmp
 *.temp
 
-# Test/scratch files
-test_recording.wav
-iamge.png
-api.py
+# Runtime cache
+app/services/scraping/_cache/
 
 # Jupyter
 .ipynb_checkpoints/
