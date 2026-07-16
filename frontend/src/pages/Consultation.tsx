@@ -15,6 +15,7 @@ import {
 import AppShell from '../components/layout/AppShell'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
+import AnswerText from '../components/ui/AnswerText'
 import { extractDocuments, reviewDocuments, sendChat } from '../lib/api'
 import type { ConsultationTurn } from '../types'
 
@@ -240,9 +241,7 @@ export default function Consultation() {
                   <Scale size={16} />
                   <span className="text-xs font-bold">الإجابة القانونية</span>
                 </div>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap text-navy-800">
-                  {turn.answer}
-                </p>
+                <AnswerText>{turn.answer}</AnswerText>
               </Card>
             </div>
           ))}
