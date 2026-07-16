@@ -29,3 +29,26 @@ export interface UserProfile {
   joinedAt: string
   avatarUrl: string | null
 }
+
+export interface ContractField {
+  id: string
+  label: string
+  placeholder?: string
+  multiline?: boolean
+}
+
+export interface ContractTemplate {
+  id: string
+  title: string
+  description: string
+  source: 'local' | 'lawhub'
+  category: string
+  fields: ContractField[]
+}
+
+export interface OcrPage {
+  id: string
+  pageNumber: number
+  thumbnailLabel: string
+  extractedText: string
+}

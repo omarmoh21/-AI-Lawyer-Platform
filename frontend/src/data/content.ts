@@ -1,4 +1,4 @@
-import type { ConsultationTurn, SearchResult, UserProfile } from '../types'
+import type { ContractTemplate, ConsultationTurn, OcrPage, SearchResult, UserProfile } from '../types'
 
 export const currentUser: UserProfile = {
   name: 'أحمد محمد السيد',
@@ -143,3 +143,101 @@ export const searchFilters = {
   ],
   authorities: ['مجلس الدولة', 'المحكمة الدستورية', 'محكمة النقض', 'الجريدة الرسمية'],
 }
+
+export const contractTemplates: ContractTemplate[] = [
+  {
+    id: 'rental',
+    title: 'عقد إيجار',
+    description: 'عقد إيجار وحدة سكنية أو تجارية بين مالك ومستأجر.',
+    source: 'local',
+    category: 'قانون الإيجارات',
+    fields: [
+      { id: 'landlord', label: 'اسم المؤجر' },
+      { id: 'tenant', label: 'اسم المستأجر' },
+      { id: 'property', label: 'وصف العقار وعنوانه', multiline: true },
+      { id: 'duration', label: 'مدة الإيجار', placeholder: 'مثال: سنة واحدة' },
+      { id: 'rent', label: 'قيمة الإيجار الشهري' },
+    ],
+  },
+  {
+    id: 'employment',
+    title: 'عقد عمل',
+    description: 'عقد عمل بين صاحب عمل وموظف، محدد أو غير محدد المدة.',
+    source: 'local',
+    category: 'قانون العمل',
+    fields: [
+      { id: 'employer', label: 'اسم صاحب العمل' },
+      { id: 'employee', label: 'اسم الموظف' },
+      { id: 'position', label: 'المسمى الوظيفي' },
+      { id: 'salary', label: 'الراتب الشهري' },
+      { id: 'startDate', label: 'تاريخ بدء العمل' },
+    ],
+  },
+  {
+    id: 'nda',
+    title: 'اتفاقية عدم إفصاح',
+    description: 'اتفاقية حفاظ على سرية المعلومات بين طرفين.',
+    source: 'local',
+    category: 'القانون المدني',
+    fields: [
+      { id: 'partyA', label: 'الطرف الأول' },
+      { id: 'partyB', label: 'الطرف الثاني' },
+      { id: 'purpose', label: 'الغرض من مشاركة المعلومات', multiline: true },
+      { id: 'duration', label: 'مدة الالتزام بالسرية', placeholder: 'مثال: سنتان' },
+    ],
+  },
+  {
+    id: 'sale',
+    title: 'عقد بيع',
+    description: 'عقد بيع منقول أو عقار بين بائع ومشترٍ.',
+    source: 'local',
+    category: 'القانون المدني',
+    fields: [
+      { id: 'seller', label: 'اسم البائع' },
+      { id: 'buyer', label: 'اسم المشتري' },
+      { id: 'item', label: 'وصف المبيع', multiline: true },
+      { id: 'price', label: 'الثمن الإجمالي' },
+    ],
+  },
+  {
+    id: 'lawhub-partnership',
+    title: 'عقد شراكة تجارية',
+    description: 'قالب من مكتبة lawhub لتأسيس شراكة بين طرفين أو أكثر.',
+    source: 'lawhub',
+    category: 'قانون الشركات',
+    fields: [
+      { id: 'partners', label: 'أسماء الشركاء', multiline: true },
+      { id: 'capital', label: 'رأس المال ونسب المساهمة' },
+      { id: 'activity', label: 'نشاط الشركة' },
+    ],
+  },
+  {
+    id: 'lawhub-poa',
+    title: 'توكيل عام',
+    description: 'قالب من مكتبة lawhub لتوكيل شخص للتصرف نيابة عن آخر.',
+    source: 'lawhub',
+    category: 'القانون المدني',
+    fields: [
+      { id: 'principal', label: 'اسم الموكِّل' },
+      { id: 'agent', label: 'اسم الوكيل' },
+      { id: 'scope', label: 'نطاق التوكيل وصلاحياته', multiline: true },
+    ],
+  },
+]
+
+export const ocrPages: OcrPage[] = [
+  {
+    id: 'p1',
+    pageNumber: 1,
+    thumbnailLabel: 'صفحة 1',
+    extractedText:
+      'عقد عمل\nمبرم بين الطرف الأول (صاحب العمل) والطرف الثاني (الموظف) بتاريخ اليوم الموافق...\nيلتزم الطرف الثاني بأداء العمل المتفق عليه بموجب المسمى الوظيفي المحدد، مقابل راتب شهري يُدفع في نهاية كل شهر ميلادي.',
+  },
+  {
+    id: 'p2',
+    pageNumber: 2,
+    thumbnailLabel: 'صفحة 2',
+    extractedText:
+      'مدة العقد: يسري هذا العقد لمدة سنة واحدة قابلة للتجديد التلقائي ما لم يُخطر أحد الطرفين الآخر كتابةً برغبته في عدم التجديد قبل انتهاء المدة بستين يومًا.\nالشرط الجزائي: في حال التأخير في الوفاء بالالتزامات، يستحق الطرف المتضرر تعويضًا يعادل 1% من قيمة العقد عن كل أسبوع تأخير.',
+  },
+]

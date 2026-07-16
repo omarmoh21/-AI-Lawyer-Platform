@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { FileSearch, LayoutGrid, MessageSquareText, Scale, Search, UserRound } from 'lucide-react'
+import { FileEdit, FileSearch, LayoutGrid, MessageSquareText, Scale, Search, UserRound } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import Sidebar from './Sidebar'
 
@@ -7,6 +7,7 @@ const mobileNavItems = [
   { to: '/dashboard', label: 'الرئيسية', icon: LayoutGrid },
   { to: '/consultation', label: 'استشارة', icon: MessageSquareText },
   { to: '/documents', label: 'مستندات', icon: FileSearch },
+  { to: '/contracts', label: 'عقود', icon: FileEdit },
   { to: '/search', label: 'بحث', icon: Search },
 ]
 

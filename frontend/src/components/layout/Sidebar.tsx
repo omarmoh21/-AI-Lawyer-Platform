@@ -1,10 +1,11 @@
-import { FileSearch, Home, LayoutGrid, MessageSquareText, Scale, Search, UserRound } from 'lucide-react'
+import { FileEdit, FileSearch, Home, LayoutGrid, MessageSquareText, Scale, Search, UserRound } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 
 const navItems = [
   { to: '/dashboard', label: 'الرئيسية', icon: LayoutGrid },
   { to: '/consultation', label: 'استشارة قانونية', icon: MessageSquareText },
   { to: '/documents', label: 'تحليل مستند', icon: FileSearch },
+  { to: '/contracts', label: 'صياغة عقد', icon: FileEdit },
   { to: '/search', label: 'البحث القانوني', icon: Search },
 ]
 
