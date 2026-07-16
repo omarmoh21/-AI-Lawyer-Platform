@@ -1,0 +1,12 @@
+gradio>=4.0
+qdrant-client
+fastembed
+sentence-transformers
+torch
+langchain-google-genai
+langchain-core
+langgraph
+google-genai
+pillow
+python-dotenv
+requests

@@ -1,4 +1,4 @@
-import { ArrowLeft, FileEdit, FileSearch, MessageSquareText, Search } from 'lucide-react'
+import { ArrowLeft, FileSearch, MessageSquareText, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import Card from '../components/ui/Card'
@@ -15,12 +15,6 @@ const modes = [
     icon: FileSearch,
     title: 'تحليل مستند',
     description: 'ارفع عقدًا أو مستندًا قانونيًا لتحليله واستخراج بنوده الأساسية.',
-  },
-  {
-    to: '/contracts',
-    icon: FileEdit,
-    title: 'صياغة عقد',
-    description: 'اختر قالب عقد وامْلأ بياناته للحصول على مسودة جاهزة للتنزيل.',
   },
   {
     to: '/search',

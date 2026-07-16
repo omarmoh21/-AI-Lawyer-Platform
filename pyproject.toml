@@ -1,0 +1,28 @@
+[project]
+name = "ai-lawyer"
+version = "0.1.0"
+description = "An AI-powered legal assistant specialised in Egyptian law, built from multiple agents, tools, skills, and backend services (RAG, OCR, ASR, LLMs)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gradio",
+    "langchain-google-genai",
+    "langchain-core",
+    "langgraph",
+    "google-genai",
+    "qdrant-client",
+    "fastembed",
+    "sentence-transformers",
+    "torch",
+    "Pillow",
+    "requests",
+    "python-dotenv",
+    "python-docx",
+    "beautifulsoup4",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+    "pytest>=8.0.0",
+]

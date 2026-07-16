@@ -40,7 +40,7 @@ tmp_uploads/
 *.temp
 
 # Runtime cache
-app/core/services/scraping/_cache/
+app/services/scraping/_cache/
 
 # Jupyter
 .ipynb_checkpoints/
