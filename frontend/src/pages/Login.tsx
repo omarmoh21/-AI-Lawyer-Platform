@@ -4,15 +4,28 @@ import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/auth/AuthLayout'
 import Field from '../components/ui/Field'
 import Button from '../components/ui/Button'
+import { useAuth } from '../lib/auth'
 
 export default function Login() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    navigate('/dashboard')
+    setError(null)
+    setIsSubmitting(true)
+    try {
+      await login(email, password)
+      navigate('/dashboard')
+    } catch {
+      setError('البريد الإلكتروني أو كلمة المرور غير صحيحة')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -60,8 +73,16 @@ export default function Login() {
           </a>
         </div>
 
-        <Button type="submit" size="lg" className="w-full" icon={<LogIn size={18} />}>
-          تسجيل الدخول
+        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          icon={<LogIn size={18} />}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
         </Button>
       </form>
     </AuthLayout>

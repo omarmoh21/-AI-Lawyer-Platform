@@ -6,20 +6,21 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Field from '../components/ui/Field'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
-import { currentUser } from '../data/content'
+import { useAuth } from '../lib/auth'
 
 export default function Profile() {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(currentUser.avatarUrl)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [form, setForm] = useState({
-    name: currentUser.name,
-    email: currentUser.email,
-    phone: currentUser.phone,
-    city: currentUser.city,
+    name: user?.name ?? '',
+    email: user?.email ?? '',
+    phone: '',
+    city: '',
   })
   const [savedForm, setSavedForm] = useState(form)
 
@@ -38,8 +39,9 @@ export default function Profile() {
     setIsEditing(false)
   }
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     setIsDeleteOpen(false)
+    await logout()
     navigate('/')
   }
 
@@ -75,9 +77,6 @@ export default function Profile() {
           <div>
             <h2 className="text-lg font-extrabold text-navy-950">{savedForm.name}</h2>
             <p className="mt-1 text-sm text-navy-500">{savedForm.email}</p>
-            <p className="mt-1 text-xs font-semibold text-gold-600">
-              عضو منذ {currentUser.joinedAt}
-            </p>
           </div>
         </Card>
 

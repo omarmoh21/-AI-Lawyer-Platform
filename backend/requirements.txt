@@ -1,6 +1,10 @@
 fastapi
 uvicorn[standard]
 python-multipart
+sqlalchemy
+bcrypt
+python-jose[cryptography]
+email-validator
 gradio>=4.0
 qdrant-client
 fastembed

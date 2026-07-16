@@ -23,6 +23,13 @@ STT_MODEL_ID     = "scribe_v2"
 TOP_K        = 10
 RERANK_TOP_K = 5
 
+# ── Auth ───────────────────────────────────────────────────────
+JWT_SECRET_KEY           = os.getenv("JWT_SECRET_KEY", "dev-insecure-secret-change-me")
+JWT_ALGORITHM            = "HS256"
+JWT_EXPIRE_MINUTES       = 60 * 24 * 7  # 7 days
+AUTH_COOKIE_NAME         = "access_token"
+DATABASE_URL             = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+
 
 def make_llm(temperature: float = 0.1):
     """Return a ChatGoogleGenerativeAI instance using the existing Gemini API key."""

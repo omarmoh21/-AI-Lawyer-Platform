@@ -7,7 +7,9 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import articles, chat, documents, health
+from api.routes import articles, auth, chat, documents, health
+from app.db.database import Base, engine
+from app.db import models  # noqa: F401 — ensures models are registered before create_all
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +30,8 @@ ALLOWED_ORIGINS = [
     *_EXTRA_ORIGINS,
 ]
 
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(title="AI Lawyer API")
 
 app.add_middleware(
@@ -39,6 +43,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(articles.router, prefix="/api")

@@ -42,6 +42,10 @@ tmp_uploads/
 # Runtime cache
 app/services/scraping/_cache/
 
+# SQLite databases
+*.sqlite3
+backend/app.db
+
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb

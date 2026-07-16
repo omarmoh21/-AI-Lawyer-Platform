@@ -1,5 +1,6 @@
-import { FileSearch, FileSignature, Home, LayoutGrid, MessageSquareText, Scale, Search, UserRound } from 'lucide-react'
-import { Link, NavLink } from 'react-router-dom'
+import { FileSearch, FileSignature, Home, LayoutGrid, LogOut, MessageSquareText, Scale, Search, UserRound } from 'lucide-react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../lib/auth'
 
 const navItems = [
   { to: '/dashboard', label: 'الرئيسية', icon: LayoutGrid },
@@ -10,6 +11,14 @@ const navItems = [
 ]
 
 export default function Sidebar() {
+  const navigate = useNavigate()
+  const { logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
+
   return (
     <aside className="hidden w-64 shrink-0 border-e border-navy-100 bg-white md:flex md:flex-col">
       <Link
@@ -62,6 +71,14 @@ export default function Sidebar() {
           <Home size={18} strokeWidth={2} />
           العودة للموقع الرئيسي
         </Link>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-navy-500 transition-colors hover:bg-red-50 hover:text-red-600"
+        >
+          <LogOut size={18} strokeWidth={2} />
+          تسجيل الخروج
+        </button>
         <div className="rounded-xl bg-navy-50 p-4 text-xs leading-relaxed text-navy-600">
           المنصة أداة إرشادية ولا تغني عن استشارة محامٍ مرخص.
         </div>

@@ -4,16 +4,39 @@ import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/auth/AuthLayout'
 import Field from '../components/ui/Field'
 import Button from '../components/ui/Button'
+import { useAuth } from '../lib/auth'
 
 export default function Signup() {
   const navigate = useNavigate()
+  const { signup } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    navigate('/dashboard')
+    setError(null)
+
+    if (password.length < 8) {
+      setError('يجب أن تتكون كلمة المرور من 8 أحرف على الأقل')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await signup(name, email, password)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message === 'Email already registered'
+          ? 'هذا البريد الإلكتروني مسجّل بالفعل'
+          : 'حدث خطأ أثناء إنشاء الحساب، حاول مرة أخرى',
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -73,8 +96,16 @@ export default function Signup() {
           .
         </p>
 
-        <Button type="submit" size="lg" className="w-full" icon={<UserPlus size={18} />}>
-          إنشاء الحساب
+        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          icon={<UserPlus size={18} />}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'جارٍ إنشاء الحساب...' : 'إنشاء الحساب'}
         </Button>
       </form>
     </AuthLayout>
