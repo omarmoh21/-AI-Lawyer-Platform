@@ -5,6 +5,7 @@ import {
   FileText,
   Mic,
   Paperclip,
+  Plus,
   Scale,
   ScanText,
   Send,
@@ -64,6 +65,16 @@ export default function Consultation() {
       q,
       `⚠️ تعذر الاتصال بالخادم: ${error instanceof Error ? error.message : String(error)}`,
     )
+  }
+
+  const handleNewChat = () => {
+    // Clear the session id so the backend starts a fresh conversation.
+    sessionIdRef.current = null
+    setTurns([])
+    setQuestion('')
+    setAttachments([])
+    setPendingReview(null)
+    setIsThinking(false)
   }
 
   const handleMic = () => {
@@ -184,6 +195,19 @@ export default function Consultation() {
     >
       <div className="mx-auto flex max-w-6xl gap-6 px-6 py-8">
         <div className="flex-1 space-y-6">
+          {(turns.length > 0 || busy) && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleNewChat}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-navy-200 bg-white px-3 py-2 text-xs font-semibold text-navy-600 transition-colors hover:border-navy-400 hover:text-navy-900"
+              >
+                <Plus size={14} />
+                محادثة جديدة
+              </button>
+            </div>
+          )}
+
           {turns.length === 0 && !busy && (
             <Card className="p-8 text-center">
               <p className="text-sm text-navy-400">
