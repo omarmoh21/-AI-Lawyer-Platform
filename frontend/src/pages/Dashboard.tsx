@@ -1,4 +1,4 @@
-import { ArrowLeft, FileSearch, MessageSquareText, Search } from 'lucide-react'
+import { ArrowLeft, FileSearch, FileSignature, MessageSquareText, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import Card from '../components/ui/Card'
@@ -19,8 +19,14 @@ const modes = [
   {
     to: '/search',
     icon: Search,
-    title: 'البحث القانوني',
-    description: 'ابحث في القوانين والمواد المصرية بلغتك الطبيعية.',
+    title: 'البحث في المواد',
+    description: 'اعرض النص الحرفي لأي مادة قانونية باسم القانون ورقم المادة.',
+  },
+  {
+    to: '/contracts',
+    icon: FileSignature,
+    title: 'إنشاء عقد',
+    description: 'أنشئ عقد إيجار أو عمل أو سرية أو بيع بنموذج جاهز.',
   },
 ]
 
@@ -37,7 +43,7 @@ export default function Dashboard() {
       description="اختر الطريقة التي تناسب استفسارك القانوني"
     >
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {modes.map(({ to, icon: Icon, title, description }) => (
             <Link key={to} to={to}>
               <Card className="group h-full p-6 transition-shadow hover:shadow-md">
@@ -66,7 +72,7 @@ export default function Dashboard() {
             {quickQuestions.map((question) => (
               <Link
                 key={question}
-                to="/consultation"
+                to={`/consultation?q=${encodeURIComponent(question)}`}
                 className="rounded-full border border-navy-200 bg-white px-4 py-2 text-sm font-semibold text-navy-700 transition-colors hover:border-navy-400 hover:text-navy-950"
               >
                 {question}

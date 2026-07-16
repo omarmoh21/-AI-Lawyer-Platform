@@ -9,18 +9,16 @@ logger = logging.getLogger(__name__)
 
 @tool
 def ocr_tool(
-    image_paths: Annotated[list[str], "قائمة مسارات الصور (الحد الأقصى 3 صور)"],
+    image_paths: Annotated[list[str], "قائمة مسارات الصور"],
     user_message: Annotated[str, "رسالة أو توجيه إضافي من المستخدم"] = "",
 ) -> str:
     """
     استخرج النص من صور الوثائق القانونية.
-    استخدم هذه الأداة عندما يرفع المستخدم صورة أو أكثر (حتى 3 صور).
+    استخدم هذه الأداة عندما يرفع المستخدم صورة أو أكثر.
     لا تستخدمها إذا لم يكن هناك صور مرفوعة.
     """
     if not image_paths:
         return "لم يتم تمرير أي صور."
-    if len(image_paths) > 3:
-        return "الحد الأقصى للصور هو 3 فقط. يرجى إرسال 3 صور أو أقل."
 
     results = []
     for i, path in enumerate(image_paths, 1):

@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Consultation from './pages/Consultation'
 import DocumentAnalysis from './pages/DocumentAnalysis'
 import LegalSearch from './pages/LegalSearch'
+import Contracts from './pages/Contracts'
 import Profile from './pages/Profile'
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/consultation" element={<Consultation />} />
       <Route path="/documents" element={<DocumentAnalysis />} />
       <Route path="/search" element={<LegalSearch />} />
+      <Route path="/contracts" element={<Contracts />} />
       <Route path="/profile" element={<Profile />} />
     </Routes>
   )

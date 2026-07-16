@@ -17,7 +17,6 @@ from app.config.settings import make_llm
 from app.agents.legal_research_agent import legal_research_agent
 from app.agents.document_agent import document_agent
 from app.agents.contract_agent import contract_agent
-from app.services.ocr.gemini_ocr import extract_text
 
 logger = logging.getLogger(__name__)
 
@@ -154,28 +153,19 @@ logger.info("Supervisor ready — routing to 3 specialist agents")
 
 def run(
     text: str,
-    image_paths: list[str],
     conv_history: list,
+    extracted_text: str = "",
 ) -> tuple[str, list, str | None]:
     """
     Entry point for the UI.
+
+    `extracted_text` is already-OCR'd / human-reviewed document text (see
+    app.agents.ocr_agent) to attach to the user's message, if any.
     Returns (response_text, updated_history, docx_file_path_or_None).
     """
     content = text
-
-    # Pre-process images before sending to supervisor
-    if image_paths:
-        ocr_parts = []
-        for i, path in enumerate(image_paths, 1):
-            try:
-                logger.info("OCR start — image %d: %s", i, path)
-                extracted = extract_text(path, text)
-                logger.info("OCR done  — image %d: %d chars", i, len(extracted))
-                ocr_parts.append(f"[نص الصورة {i}]\n{extracted}")
-            except Exception as e:
-                logger.error("OCR failed — image %d: %s", i, e, exc_info=True)
-                ocr_parts.append(f"[الصورة {i}: فشل الاستخراج — {e}]")
-        content = f"{text}\n\n[نص مستخرج من الصور المرفوعة]\n" + "\n\n".join(ocr_parts)
+    if extracted_text.strip():
+        content = f"{text}\n\n[نص مستخرج من الملفات المرفوعة]\n{extracted_text}"
 
     conv_history.append(HumanMessage(content=content))
 

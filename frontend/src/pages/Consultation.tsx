@@ -1,18 +1,70 @@
-import { useState } from 'react'
-import { BookText, Mic, Scale, Send, ShieldCheck } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import {
+  CheckCircle2,
+  FileText,
+  Mic,
+  Paperclip,
+  Scale,
+  ScanText,
+  Send,
+  ShieldCheck,
+  X,
+} from 'lucide-react'
 import AppShell from '../components/layout/AppShell'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
-import { sampleConsultation } from '../data/content'
+import { extractDocuments, reviewDocuments, sendChat } from '../lib/api'
 import type { ConsultationTurn } from '../types'
 
+const quickPrompts = [
+  'عقوبة السرقة في القانون المصري',
+  'حقوق المستأجر عند انتهاء العقد',
+  'ما هي المادة 234 من قانون العقوبات؟',
+  'إجراءات الفصل التعسفي في قانون العمل',
+]
+
+const methodLabels: Record<string, string> = {
+  direct: 'استخراج مباشر (بدون OCR)',
+  ocr: 'استخراج ضوئي (OCR)',
+  mixed: 'استخراج مختلط (مباشر + OCR)',
+}
+
+interface PendingReview {
+  threadId: string
+  question: string
+  fileNames: string[]
+  extractedText: string
+  extractionMethod: string
+}
+
 export default function Consultation() {
-  const [turns, setTurns] = useState<ConsultationTurn[]>([sampleConsultation])
-  const [question, setQuestion] = useState('')
+  const [searchParams] = useSearchParams()
+  const [turns, setTurns] = useState<ConsultationTurn[]>([])
+  const [question, setQuestion] = useState(searchParams.get('q') ?? '')
+  const [attachments, setAttachments] = useState<File[]>([])
+  const [pendingReview, setPendingReview] = useState<PendingReview | null>(null)
   const [isThinking, setIsThinking] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const sessionIdRef = useRef<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const latestTurn = turns[turns.length - 1]
+  const busy = isThinking || pendingReview !== null
+
+  const pushTurn = (q: string, answer: string) => {
+    setTurns((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), question: q, answer, sources: [] },
+    ])
+  }
+
+  const failTurn = (q: string, error: unknown) => {
+    pushTurn(
+      q,
+      `⚠️ تعذر الاتصال بالخادم: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
 
   const handleMic = () => {
     if (isRecording) return
@@ -23,39 +75,139 @@ export default function Consultation() {
     }, 1800)
   }
 
-  const handleSubmit = () => {
-    const trimmed = question.trim()
-    if (!trimmed || isThinking) return
+  const handleAttach = (files: FileList | null) => {
+    if (!files) return
+    setAttachments((prev) => [...prev, ...Array.from(files)])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const askSupervisor = async (q: string, extractedText = '', label?: string) => {
     setIsThinking(true)
+    try {
+      const result = await sendChat(q, sessionIdRef.current, extractedText)
+      sessionIdRef.current = result.session_id
+      pushTurn(label ?? q, result.response)
+    } catch (error) {
+      failTurn(label ?? q, error)
+    } finally {
+      setIsThinking(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    const trimmed = question.trim()
+    if (!trimmed || busy) return
+
     setQuestion('')
 
-    window.setTimeout(() => {
-      setTurns((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          question: trimmed,
-          answer: sampleConsultation.answer,
-          sources: sampleConsultation.sources,
-        },
-      ])
+    // No attachments → straight to the supervisor.
+    if (attachments.length === 0) {
+      await askSupervisor(trimmed)
+      return
+    }
+
+    // Attachments → extract first, then pause for inline human review.
+    const files = attachments
+    setAttachments([])
+    setIsThinking(true)
+    try {
+      const result = await extractDocuments(files, trimmed)
+      setPendingReview({
+        threadId: result.thread_id,
+        question: trimmed,
+        fileNames: files.map((f) => f.name),
+        extractedText:
+          result.status === 'review'
+            ? (result.extracted_text ?? '')
+            : (result.final_text ?? ''),
+        extractionMethod: result.extraction_method ?? '',
+      })
+    } catch (error) {
+      failTurn(trimmed, error)
+    } finally {
       setIsThinking(false)
-    }, 1100)
+    }
+  }
+
+  const handleApproveReview = async () => {
+    if (!pendingReview) return
+    const { threadId, question: q, fileNames, extractedText } = pendingReview
+    setPendingReview(null)
+    setIsThinking(true)
+    try {
+      const reviewed = await reviewDocuments(threadId, 'edit', {
+        text: extractedText,
+      })
+      await askSupervisor(
+        q,
+        reviewed.final_text ?? extractedText,
+        `${q}\n📎 ${fileNames.join('، ')}`,
+      )
+    } catch (error) {
+      failTurn(q, error)
+      setIsThinking(false)
+    }
+  }
+
+  const handleRetryReview = async () => {
+    if (!pendingReview) return
+    const current = pendingReview
+    setPendingReview(null)
+    setIsThinking(true)
+    try {
+      const result = await reviewDocuments(current.threadId, 'retry', {
+        feedback: 'النص المستخرج غير دقيق — أعد الاستخراج بعناية أكبر.',
+      })
+      setPendingReview({
+        ...current,
+        extractedText:
+          result.status === 'review'
+            ? (result.extracted_text ?? '')
+            : (result.final_text ?? ''),
+        extractionMethod: result.extraction_method ?? current.extractionMethod,
+      })
+    } catch (error) {
+      failTurn(current.question, error)
+    } finally {
+      setIsThinking(false)
+    }
   }
 
   return (
     <AppShell
       title="استشارة قانونية"
-      description="اطرح سؤالك وسنجيب بالاستناد إلى مصادر القانون المصري"
+      description="اطرح سؤالك — ويمكنك إرفاق مستند (PDF أو صورة) ليُحلَّل ضمن الإجابة"
     >
       <div className="mx-auto flex max-w-6xl gap-6 px-6 py-8">
         <div className="flex-1 space-y-6">
+          {turns.length === 0 && !busy && (
+            <Card className="p-8 text-center">
+              <p className="text-sm text-navy-400">
+                ابدأ بطرح سؤالك القانوني — تستند الإجابات إلى قاعدة بيانات القوانين المصرية.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {quickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => setQuestion(prompt)}
+                    className="rounded-lg bg-navy-50 px-3 py-2 text-xs font-semibold text-navy-600 transition-colors hover:bg-navy-100"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {turns.map((turn) => (
             <div key={turn.id} className="space-y-4">
               <div className="flex justify-end">
                 <div className="max-w-xl rounded-2xl rounded-tl-sm bg-navy-900 px-5 py-3 text-white">
-                  <p className="text-sm leading-relaxed">{turn.question}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{turn.question}</p>
                 </div>
               </div>
 
@@ -64,66 +216,133 @@ export default function Consultation() {
                   <Scale size={16} />
                   <span className="text-xs font-bold">الإجابة القانونية</span>
                 </div>
-                <p className="text-sm leading-relaxed text-navy-800">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap text-navy-800">
                   {turn.answer}
                 </p>
-
-                <div className="mt-5 flex flex-wrap gap-2 border-t border-navy-100 pt-4">
-                  {turn.sources.map((source) => (
-                    <span
-                      key={source.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-navy-50 px-3 py-1.5 text-xs font-semibold text-navy-700"
-                    >
-                      <BookText size={13} />
-                      {source.title} — {source.article}
-                    </span>
-                  ))}
-                </div>
               </Card>
             </div>
           ))}
 
-          {isThinking && (
-            <Card className="flex items-center gap-2 p-6 text-sm text-navy-500">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-gold-500" />
-              جارٍ البحث في المصادر القانونية...
+          {pendingReview && (
+            <Card className="border-gold-200 p-6">
+              <div className="mb-3 flex items-center gap-2 text-gold-700">
+                <ScanText size={16} />
+                <span className="text-xs font-bold">
+                  مراجعة النص المستخرج —{' '}
+                  {methodLabels[pendingReview.extractionMethod] ?? 'تم الاستخراج'}
+                </span>
+              </div>
+              <p className="mb-2 text-xs text-navy-500">
+                راجع النص المستخرج من ({pendingReview.fileNames.join('، ')}) وعدّله إن لزم،
+                ثم اضغط "اعتماد ومتابعة".
+              </p>
+              <textarea
+                value={pendingReview.extractedText}
+                onChange={(event) =>
+                  setPendingReview({ ...pendingReview, extractedText: event.target.value })
+                }
+                dir="rtl"
+                className="min-h-48 w-full resize-y rounded-xl border border-navy-100 bg-white p-3 text-xs leading-relaxed text-navy-800 outline-none focus:border-navy-300"
+              />
+              <div className="mt-3 flex gap-2">
+                <Button size="md" icon={<CheckCircle2 size={16} />} onClick={handleApproveReview}>
+                  اعتماد ومتابعة
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  icon={<ScanText size={16} />}
+                  onClick={handleRetryReview}
+                >
+                  إعادة الاستخراج
+                </Button>
+              </div>
             </Card>
           )}
 
-          <div className="sticky bottom-0 flex items-end gap-3 rounded-2xl border border-navy-100 bg-white p-3 shadow-sm">
-            <button
-              type="button"
-              onClick={handleMic}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                isRecording
-                  ? 'animate-pulse bg-red-500 text-white'
-                  : 'bg-navy-50 text-navy-600 hover:bg-navy-100'
-              }`}
-              aria-label="التحدث بدلاً من الكتابة"
-            >
-              <Mic size={18} />
-            </button>
-            <textarea
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault()
-                  handleSubmit()
-                }
-              }}
-              rows={1}
-              placeholder="اكتب سؤالك القانوني هنا..."
-              className="max-h-32 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm text-navy-900 outline-none placeholder:text-navy-400"
-            />
-            <Button
-              size="md"
-              onClick={handleSubmit}
-              disabled={!question.trim() || isThinking}
-              icon={<Send size={16} />}
-            >
-              إرسال
-            </Button>
+          {isThinking && (
+            <Card className="flex items-center gap-2 p-6 text-sm text-navy-500">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-gold-500" />
+              {attachments.length > 0 || pendingReview
+                ? 'جارٍ المعالجة...'
+                : 'جارٍ البحث في المصادر القانونية...'}
+            </Card>
+          )}
+
+          <div className="sticky bottom-0 rounded-2xl border border-navy-100 bg-white p-3 shadow-sm">
+            {attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2 px-1">
+                {attachments.map((file, index) => (
+                  <span
+                    key={`${file.name}-${index}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-navy-50 px-3 py-1.5 text-xs font-semibold text-navy-700"
+                  >
+                    <FileText size={13} />
+                    {file.name}
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="text-navy-400 hover:text-red-500"
+                      aria-label="إزالة الملف"
+                    >
+                      <X size={13} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-end gap-3">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-navy-50 text-navy-600 transition-colors hover:bg-navy-100"
+                aria-label="إرفاق مستند"
+              >
+                <Paperclip size={18} />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg"
+                className="hidden"
+                onChange={(event) => handleAttach(event.target.files)}
+              />
+              <button
+                type="button"
+                onClick={handleMic}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                  isRecording
+                    ? 'animate-pulse bg-red-500 text-white'
+                    : 'bg-navy-50 text-navy-600 hover:bg-navy-100'
+                }`}
+                aria-label="التحدث بدلاً من الكتابة"
+              >
+                <Mic size={18} />
+              </button>
+              <textarea
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault()
+                    handleSubmit()
+                  }
+                }}
+                rows={1}
+                placeholder="اكتب سؤالك القانوني هنا... (يمكنك إرفاق PDF أو صورة)"
+                className="max-h-32 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm text-navy-900 outline-none placeholder:text-navy-400"
+              />
+              <Button
+                size="md"
+                onClick={handleSubmit}
+                disabled={!question.trim() || busy}
+                icon={<Send size={16} />}
+              >
+                إرسال
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -131,30 +350,18 @@ export default function Consultation() {
           <Card className="sticky top-24 p-6">
             <div className="flex items-center gap-2 text-navy-900">
               <ShieldCheck size={18} className="text-gold-600" />
-              <h3 className="text-sm font-bold">المصادر المستخدمة</h3>
+              <h3 className="text-sm font-bold">كيف تعمل المنصة؟</h3>
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-navy-500">
-              المواد القانونية التي استندت إليها آخر إجابة.
-            </p>
-
-            <div className="mt-4 space-y-3">
-              {latestTurn.sources.map((source) => (
-                <div
-                  key={source.id}
-                  className="rounded-xl border border-navy-100 p-3"
-                >
-                  <p className="text-xs font-bold text-navy-900">
-                    {source.title}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold text-gold-600">
-                    {source.article}
-                  </p>
-                  <p className="mt-2 text-xs leading-relaxed text-navy-500">
-                    {source.snippet}
-                  </p>
-                </div>
-              ))}
-            </div>
+            <ul className="mt-3 space-y-2 text-xs leading-relaxed text-navy-500">
+              <li>• النصوص القانونية المقتبسة تظهر داخل الإجابة مع رقم المادة واسم القانون.</li>
+              <li>• أسئلة المتابعة تفهم سياق المحادثة السابقة.</li>
+              <li>• عند إرفاق مستند، تُراجع النص المستخرج بنفسك قبل التحليل.</li>
+            </ul>
+            {latestTurn && (
+              <p className="mt-4 border-t border-navy-100 pt-3 text-xs text-navy-400">
+                عدد الأسئلة في هذه الجلسة: {turns.length}
+              </p>
+            )}
           </Card>
         </aside>
       </div>
