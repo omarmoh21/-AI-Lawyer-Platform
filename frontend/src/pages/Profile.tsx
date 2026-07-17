@@ -10,7 +10,7 @@ import { useAuth } from '../lib/auth'
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { user, deleteAccount } = useAuth()
+  const { user, logout } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -19,8 +19,8 @@ export default function Profile() {
   const [form, setForm] = useState({
     name: user?.name ?? '',
     email: user?.email ?? '',
-    phone: user?.phone ?? '',
-    city: user?.city ?? '',
+    phone: '',
+    city: '',
   })
   const [savedForm, setSavedForm] = useState(form)
 
@@ -41,7 +41,7 @@ export default function Profile() {
 
   const handleDeleteAccount = async () => {
     setIsDeleteOpen(false)
-    await deleteAccount()
+    await logout()
     navigate('/')
   }
 
