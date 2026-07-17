@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Lock, Mail, User, UserPlus } from 'lucide-react'
+import { Lock, Mail, MapPin, Phone, User, UserPlus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/auth/AuthLayout'
 import Field from '../components/ui/Field'
@@ -11,6 +11,8 @@ export default function Signup() {
   const { signup } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [city, setCity] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -26,7 +28,7 @@ export default function Signup() {
 
     setIsSubmitting(true)
     try {
-      await signup(name, email, password)
+      await signup(name, email, phone, city, password)
       navigate('/dashboard')
     } catch (err) {
       setError(
@@ -71,6 +73,26 @@ export default function Signup() {
           icon={<Mail size={16} />}
           value={email}
           onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+        <Field
+          id="phone"
+          type="tel"
+          label="رقم الهاتف"
+          placeholder="01012345678"
+          icon={<Phone size={16} />}
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          required
+        />
+        <Field
+          id="city"
+          type="text"
+          label="المدينة"
+          placeholder="القاهرة"
+          icon={<MapPin size={16} />}
+          value={city}
+          onChange={(event) => setCity(event.target.value)}
           required
         />
         <Field

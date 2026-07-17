@@ -34,6 +34,8 @@ def signup(payload: SignupRequest, response: Response, db: Session = Depends(get
     user = User(
         name=payload.name,
         email=payload.email,
+        phone=payload.phone,
+        city=payload.city,
         password_hash=hash_password(payload.password),
     )
     db.add(user)
@@ -62,3 +64,14 @@ def logout(response: Response):
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db.delete(current_user)
+    db.commit()
+    response.delete_cookie(key=AUTH_COOKIE_NAME)
