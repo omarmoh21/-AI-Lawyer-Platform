@@ -1,58 +1,21 @@
-// Thin client for the FastAPI backend (backend/api/routes).
-// Set VITE_API_BASE_URL in frontend/.env to point at a deployed backend;
-// defaults to the local dev server.
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'}/api`
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
-
-async function request<T>(path: string, init: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init)
-  if (!res.ok) {
-    let detail = res.statusText
-    try {
-      const body = await res.json()
-      detail = body.detail ?? detail
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new Error(detail)
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `${response.status} ${response.statusText}`)
   }
-  return res.json() as Promise<T>
+  return response.json() as Promise<T>
 }
-
-// ── Chat (supervisor agent: legal Q&A, contracts, follow-ups) ──
-
-export interface ChatResponse {
-  session_id: string
-  response: string
-  docx_path: string | null
-}
-
-export function sendChat(
-  message: string,
-  sessionId?: string | null,
-  extractedText = '',
-): Promise<ChatResponse> {
-  return request<ChatResponse>('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message,
-      session_id: sessionId ?? null,
-      extracted_text: extractedText,
-    }),
-  })
-}
-
-// ── Article lookup (verbatim law text, no LLM) ─────────────────
 
 export interface ArticleResponse {
   law_name: string
-  article_name: string
+  article_name: string | null
   article_number: number
   text: string
 }
 
-export function lookupArticle(
+export async function lookupArticle(
   lawName: string,
   articleNumber: number,
 ): Promise<ArticleResponse> {
@@ -60,12 +23,94 @@ export function lookupArticle(
     law_name: lawName,
     article_number: String(articleNumber),
   })
-  return request<ArticleResponse>(`/api/articles?${params}`, { method: 'GET' })
+  const response = await fetch(`${API_BASE_URL}/articles?${params.toString()}`)
+  return handleResponse<ArticleResponse>(response)
 }
 
-// ── Documents (OCR extract → human review → final text) ───────
+export interface AuthUser {
+  id: number
+  name: string
+  email: string
+  phone: string
+  city: string
+}
 
-export interface DocumentFlowResponse {
+export async function signup(
+  name: string,
+  email: string,
+  phone: string,
+  city: string,
+  password: string,
+): Promise<AuthUser> {
+  const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ name, email, phone, city, password }),
+  })
+  return handleResponse<AuthUser>(response)
+}
+
+export async function login(email: string, password: string): Promise<AuthUser> {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ email, password }),
+  })
+  return handleResponse<AuthUser>(response)
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${API_BASE_URL}/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+}
+
+export async function getMe(): Promise<AuthUser | null> {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    credentials: 'include',
+  })
+  if (response.status === 401) return null
+  return handleResponse<AuthUser>(response)
+}
+
+export async function deleteAccount(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `${response.status} ${response.statusText}`)
+  }
+}
+
+export interface ChatResponse {
+  session_id: string
+  response: string
+  docx_path: string | null
+}
+
+export async function sendChat(
+  message: string,
+  sessionId: string | null,
+  extractedText = '',
+): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message,
+      session_id: sessionId,
+      extracted_text: extractedText,
+    }),
+  })
+  return handleResponse<ChatResponse>(response)
+}
+
+export interface DocumentReviewPayload {
   thread_id: string
   status: 'review' | 'done'
   extracted_text?: string
@@ -73,32 +118,35 @@ export interface DocumentFlowResponse {
   final_text?: string
 }
 
-export function extractDocuments(
+export async function extractDocuments(
   files: File[],
   message = '',
-): Promise<DocumentFlowResponse> {
-  const form = new FormData()
-  for (const file of files) form.append('files', file)
-  form.append('message', message)
-  return request<DocumentFlowResponse>('/api/documents/extract', {
+): Promise<DocumentReviewPayload> {
+  const formData = new FormData()
+  for (const file of files) formData.append('files', file)
+  formData.append('message', message)
+
+  const response = await fetch(`${API_BASE_URL}/documents/extract`, {
     method: 'POST',
-    body: form,
+    body: formData,
   })
+  return handleResponse<DocumentReviewPayload>(response)
 }
 
-export function reviewDocuments(
+export async function reviewDocuments(
   threadId: string,
   action: 'approve' | 'edit' | 'retry',
   options: { text?: string; feedback?: string } = {},
-): Promise<DocumentFlowResponse> {
-  return request<DocumentFlowResponse>('/api/documents/review', {
+): Promise<DocumentReviewPayload> {
+  const response = await fetch(`${API_BASE_URL}/documents/review`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       thread_id: threadId,
       action,
-      text: options.text ?? null,
+      text: options.text,
       feedback: options.feedback ?? '',
     }),
   })
+  return handleResponse<DocumentReviewPayload>(response)
 }
