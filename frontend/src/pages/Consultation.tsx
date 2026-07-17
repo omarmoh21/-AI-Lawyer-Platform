@@ -16,8 +16,23 @@ import AppShell from '../components/layout/AppShell'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import AnswerText from '../components/ui/AnswerText'
-import { extractDocuments, reviewDocuments, sendChat } from '../lib/api'
+import ChatHistorySidebar from '../components/consultation/ChatHistorySidebar'
+import { extractDocuments, getSessionMessages, reviewDocuments, sendChat } from '../lib/api'
+import type { ChatMessageOut } from '../lib/api'
 import type { ConsultationTurn } from '../types'
+
+function messagesToTurns(messages: ChatMessageOut[]): ConsultationTurn[] {
+  const turns: ConsultationTurn[] = []
+  for (let i = 0; i + 1 < messages.length; i += 2) {
+    turns.push({
+      id: crypto.randomUUID(),
+      question: messages[i].content,
+      answer: messages[i + 1].content,
+      sources: [],
+    })
+  }
+  return turns
+}
 
 const quickPrompts = [
   'عقوبة السرقة في القانون المصري',
@@ -48,7 +63,8 @@ export default function Consultation() {
   const [pendingReview, setPendingReview] = useState<PendingReview | null>(null)
   const [isThinking, setIsThinking] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
-  const sessionIdRef = useRef<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const latestTurn = turns[turns.length - 1]
@@ -70,12 +86,29 @@ export default function Consultation() {
 
   const handleNewChat = () => {
     // Clear the session id so the backend starts a fresh conversation.
-    sessionIdRef.current = null
+    setSessionId(null)
     setTurns([])
     setQuestion('')
     setAttachments([])
     setPendingReview(null)
     setIsThinking(false)
+  }
+
+  const handleSelectSession = async (id: string) => {
+    if (id === sessionId || busy) return
+    setIsThinking(true)
+    try {
+      const messages = await getSessionMessages(id)
+      setTurns(messagesToTurns(messages))
+      setSessionId(id)
+      setQuestion('')
+      setAttachments([])
+      setPendingReview(null)
+    } catch (error) {
+      failTurn('استرجاع المحادثة', error)
+    } finally {
+      setIsThinking(false)
+    }
   }
 
   const handleMic = () => {
@@ -100,9 +133,10 @@ export default function Consultation() {
   const askSupervisor = async (q: string, extractedText = '', label?: string) => {
     setIsThinking(true)
     try {
-      const result = await sendChat(q, sessionIdRef.current, extractedText)
-      sessionIdRef.current = result.session_id
+      const result = await sendChat(q, sessionId, extractedText)
+      setSessionId(result.session_id)
       pushTurn(label ?? q, result.response)
+      setHistoryRefreshKey((key) => key + 1)
     } catch (error) {
       failTurn(label ?? q, error)
     } finally {
@@ -194,7 +228,7 @@ export default function Consultation() {
       title="استشارة قانونية"
       description="اطرح سؤالك — ويمكنك إرفاق مستند (PDF أو صورة) ليُحلَّل ضمن الإجابة"
     >
-      <div className="mx-auto flex max-w-6xl gap-6 px-6 py-8">
+      <div className="mx-auto flex max-w-7xl gap-6 px-6 py-8">
         <div className="flex-1 space-y-6">
           {(turns.length > 0 || busy) && (
             <div className="flex justify-end">
@@ -368,6 +402,15 @@ export default function Consultation() {
             </div>
           </div>
         </div>
+
+        <aside className="hidden w-64 shrink-0 lg:block">
+          <ChatHistorySidebar
+            activeSessionId={sessionId}
+            refreshKey={historyRefreshKey}
+            onSelect={handleSelectSession}
+            onNewChat={handleNewChat}
+          />
+        </aside>
 
         <aside className="hidden w-80 shrink-0 lg:block">
           <Card className="sticky top-24 p-6">

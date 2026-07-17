@@ -101,6 +101,7 @@ export async function sendChat(
   const response = await fetch(`${API_BASE_URL}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({
       message,
       session_id: sessionId,
@@ -108,6 +109,33 @@ export async function sendChat(
     }),
   })
   return handleResponse<ChatResponse>(response)
+}
+
+export interface ChatSessionSummary {
+  id: string
+  title: string | null
+  created_at: string
+  updated_at: string
+}
+
+export async function listChatSessions(): Promise<ChatSessionSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+    credentials: 'include',
+  })
+  return handleResponse<ChatSessionSummary[]>(response)
+}
+
+export interface ChatMessageOut {
+  role: string
+  content: string
+  created_at: string
+}
+
+export async function getSessionMessages(sessionId: string): Promise<ChatMessageOut[]> {
+  const response = await fetch(`${API_BASE_URL}/chat/sessions/${sessionId}/messages`, {
+    credentials: 'include',
+  })
+  return handleResponse<ChatMessageOut[]>(response)
 }
 
 export interface DocumentReviewPayload {

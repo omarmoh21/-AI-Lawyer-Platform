@@ -1,23 +1,25 @@
 """Chat endpoint — exposes the supervisor agent (legal Q&A, contracts, follow-ups).
 
-Conversations are kept in an in-memory session store keyed by session_id;
+Conversations are persisted per-user in the database, keyed by session_id;
 the client passes the session_id back on each turn to continue a conversation.
 """
 
 import logging
 import uuid
+from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
+from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.agents import supervisor
+from app.auth.dependencies import get_current_user
+from app.db.database import get_db
+from app.db.models import ChatMessage, ChatSession, User
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
-
-# In-memory conversation store: session_id -> LangChain message history.
-_SESSIONS: dict[str, list] = {}
-_MAX_SESSIONS = 500
 
 
 class ChatRequest(BaseModel):
@@ -33,20 +35,115 @@ class ChatResponse(BaseModel):
     docx_path: str | None = None
 
 
-@router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
-    session_id = req.session_id or str(uuid.uuid4())
-    history = _SESSIONS.setdefault(session_id, [])
+class SessionOut(BaseModel):
+    id: str
+    title: str | None
+    created_at: datetime
+    updated_at: datetime
 
-    # Evict oldest sessions past the cap (dict preserves insertion order).
-    if len(_SESSIONS) > _MAX_SESSIONS:
-        for key in list(_SESSIONS)[: len(_SESSIONS) - _MAX_SESSIONS]:
-            _SESSIONS.pop(key, None)
+    model_config = {"from_attributes": True}
+
+
+class MessageOut(BaseModel):
+    role: str
+    content: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+def _get_or_create_session(db: Session, session_id: str | None, user_id: int) -> ChatSession:
+    if session_id is not None:
+        session = db.get(ChatSession, session_id)
+        if session is None or session.user_id != user_id:
+            # Treat "not found" and "not owned" identically so guessing a
+            # session_id never reveals whether it belongs to someone else.
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Chat session not found")
+        return session
+
+    session = ChatSession(id=str(uuid.uuid4()), user_id=user_id)
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+def _load_history(db: Session, session_id: str) -> list:
+    rows = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session_id)
+        .order_by(ChatMessage.id.asc())
+        .all()
+    )
+    history = []
+    for row in rows:
+        cls = HumanMessage if row.role == "user" else AIMessage
+        history.append(cls(content=row.content))
+    return history
+
+
+def _persist_new_turn(db: Session, session: ChatSession, new_messages: list) -> None:
+    for msg in new_messages:
+        role = "user" if isinstance(msg, HumanMessage) else "assistant"
+        db.add(ChatMessage(session_id=session.id, role=role, content=msg.content))
+
+    if session.title is None:
+        first_human = next((m for m in new_messages if isinstance(m, HumanMessage)), None)
+        if first_human:
+            session.title = first_human.content[:80]
+
+    session.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+@router.post("/chat", response_model=ChatResponse)
+def chat(
+    req: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ChatResponse:
+    session = _get_or_create_session(db, req.session_id, current_user.id)
+    history = _load_history(db, session.id)
+    turn_start = len(history)
 
     response, history, docx_path = supervisor.run(
         req.message, history, extracted_text=req.extracted_text
     )
-    _SESSIONS[session_id] = history
 
-    logger.info("chat — session %s, %d turns", session_id, len(history) // 2)
-    return ChatResponse(session_id=session_id, response=response, docx_path=docx_path)
+    _persist_new_turn(db, session, history[turn_start:])
+
+    logger.info(
+        "chat — user %s, session %s, %d turns", current_user.id, session.id, len(history) // 2
+    )
+    return ChatResponse(session_id=session.id, response=response, docx_path=docx_path)
+
+
+@router.get("/chat/sessions", response_model=list[SessionOut])
+def list_sessions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(ChatSession)
+        .filter(ChatSession.user_id == current_user.id)
+        .order_by(ChatSession.updated_at.desc())
+        .all()
+    )
+
+
+@router.get("/chat/sessions/{session_id}/messages", response_model=list[MessageOut])
+def get_session_messages(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = db.get(ChatSession, session_id)
+    if session is None or session.user_id != current_user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Chat session not found")
+
+    return (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session_id)
+        .order_by(ChatMessage.id.asc())
+        .all()
+    )
