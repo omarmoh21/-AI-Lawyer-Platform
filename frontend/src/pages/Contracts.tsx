@@ -1,6 +1,6 @@
 // MOCK PAGE — UX prototype for contract creation. Preview is client-side
-// placeholder substitution on shortened template samples; the real backend
-// (contract agent + .docx generation) is wired in a later step.
+// placeholder substitution on shortened template samples; PDF download
+// posts that same preview text to the backend for rendering.
 
 import { useMemo, useState } from 'react'
 import {
@@ -16,6 +16,7 @@ import AppShell from '../components/layout/AppShell'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
+import { downloadContract } from '../lib/api'
 
 interface FieldDef {
   key: string
@@ -163,6 +164,8 @@ const contracts: ContractDef[] = [
 export default function Contracts() {
   const [selected, setSelected] = useState<ContractDef | null>(null)
   const [values, setValues] = useState<Record<string, string>>({})
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
 
   const preview = useMemo(() => {
     if (!selected) return ''
@@ -176,6 +179,19 @@ export default function Contracts() {
     ? selected.fields.filter((f) => values[f.key]?.trim()).length
     : 0
 
+  const handleDownload = async () => {
+    if (!selected) return
+    setDownloading(true)
+    setDownloadError(null)
+    try {
+      await downloadContract(selected.key, selected.title, preview)
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'تعذّر تنزيل الملف')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <AppShell
       title="إنشاء عقد"
@@ -185,7 +201,7 @@ export default function Contracts() {
         <div className="mb-6 flex items-center gap-3">
           <Badge tone="gold">نسخة تجريبية</Badge>
           <p className="text-xs text-navy-500">
-            هذه معاينة أولية لتجربة الاستخدام — توليد ملف Word النهائي يُفعَّل لاحقًا.
+            هذه معاينة أولية لتجربة الاستخدام — يمكنك تنزيل العقد بصيغة PDF.
           </p>
         </div>
 
@@ -264,15 +280,18 @@ export default function Contracts() {
                     <FileSignature size={16} />
                     <span className="text-xs font-bold">معاينة العقد</span>
                   </div>
-                  <div className="relative">
-                    <Button size="md" icon={<Download size={16} />} disabled>
-                      تنزيل .docx
-                    </Button>
-                    <span className="absolute -top-2 -left-2 rounded-full bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      قريباً
-                    </span>
-                  </div>
+                  <Button
+                    size="md"
+                    icon={<Download size={16} />}
+                    onClick={handleDownload}
+                    disabled={downloading}
+                  >
+                    {downloading ? 'جارٍ التنزيل...' : 'تنزيل PDF'}
+                  </Button>
                 </div>
+                {downloadError && (
+                  <p className="mt-2 text-xs font-semibold text-red-600">{downloadError}</p>
+                )}
                 <pre
                   dir="rtl"
                   className="mt-4 flex-1 overflow-auto rounded-xl bg-navy-50 p-4 font-[inherit] text-xs leading-loose whitespace-pre-wrap text-navy-800"

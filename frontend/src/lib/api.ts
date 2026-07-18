@@ -181,6 +181,33 @@ export async function extractDocuments(
   return handleResponse<DocumentReviewPayload>(response)
 }
 
+export async function downloadContract(
+  contractType: string,
+  title: string,
+  text: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/contracts/download`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ contract_type: contractType, title, text }),
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `${response.status} ${response.statusText}`)
+  }
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${contractType}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export async function reviewDocuments(
   threadId: string,
   action: 'approve' | 'edit' | 'retry',
