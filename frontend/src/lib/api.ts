@@ -13,6 +13,7 @@ export interface ArticleResponse {
   article_name: string | null
   article_number: number
   text: string
+  history_id: number
 }
 
 export async function lookupArticle(
@@ -23,8 +24,27 @@ export async function lookupArticle(
     law_name: lawName,
     article_number: String(articleNumber),
   })
-  const response = await fetch(`${API_BASE_URL}/articles?${params.toString()}`)
+  const response = await fetch(`${API_BASE_URL}/articles?${params.toString()}`, {
+    credentials: 'include',
+  })
   return handleResponse<ArticleResponse>(response)
+}
+
+export interface SearchHistoryItem {
+  id: number
+  law_name: string
+  article_number: number
+  article_name: string | null
+  text: string | null
+  found: boolean
+  created_at: string
+}
+
+export async function listSearchHistory(): Promise<SearchHistoryItem[]> {
+  const response = await fetch(`${API_BASE_URL}/articles/history`, {
+    credentials: 'include',
+  })
+  return handleResponse<SearchHistoryItem[]>(response)
 }
 
 export interface AuthUser {
