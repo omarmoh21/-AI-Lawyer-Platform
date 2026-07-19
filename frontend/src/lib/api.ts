@@ -181,6 +181,26 @@ export async function extractDocuments(
   return handleResponse<DocumentReviewPayload>(response)
 }
 
+export interface ContractFieldDef {
+  key: string
+  label: string
+}
+
+export interface ContractTemplate {
+  key: string
+  title: string
+  description: string
+  fields: ContractFieldDef[]
+  template: string
+}
+
+export async function getContractTemplates(): Promise<ContractTemplate[]> {
+  const response = await fetch(`${API_BASE_URL}/contracts/templates`, {
+    credentials: 'include',
+  })
+  return handleResponse<ContractTemplate[]>(response)
+}
+
 export async function downloadContract(
   contractType: string,
   title: string,

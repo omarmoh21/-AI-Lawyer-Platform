@@ -263,19 +263,216 @@ SALE = """عقد بيع
 الشاهد الثاني: __________________
 """
 
+CONTRACTING = """عقد مقاولة
+(وفقاً لأحكام القانون المدني المصري رقم 131 لسنة 1948 — المواد 646 وما بعدها)
+
+أنه في يوم {SIGNING_DATE} تحرر هذا العقد بين كل من:
+
+الطرف الأول (رب العمل): {OWNER_NAME}
+المقيم في: {OWNER_ADDRESS}
+
+الطرف الثاني (المقاول): {CONTRACTOR_NAME}
+المقيم في: {CONTRACTOR_ADDRESS}
+
+تمهيد: يرغب الطرف الأول في تنفيذ الأعمال الموضحة أدناه، وقد قبل الطرف الثاني القيام بها بصفته مقاولاً مستقلاً، وقد اتفق الطرفان وهما بكامل الأهلية على ما يلي:
+
+البند الأول: يعتبر التمهيد السابق جزءاً لا يتجزأ من هذا العقد.
+
+البند الثاني — محل المقاولة:
+تعهد الطرف الثاني بأن ينفذ لحساب الطرف الأول الأعمال التالية: {WORK_DESCRIPTION}
+وذلك بمكان: {WORK_LOCATION}
+
+البند الثالث — توريد المواد:
+يلتزم بتوريد المواد والأدوات اللازمة للتنفيذ: {MATERIALS_PARTY}، وتكون المواد مطابقة للأصول الفنية والمواصفات المتفق عليها.
+
+البند الرابع — قيمة المقاولة:
+اتفق الطرفان على أن القيمة الإجمالية للأعمال هي {TOTAL_VALUE} جنيه مصري، تُسدَّد وفقاً لما يلي: {PAYMENT_TERMS}
+
+البند الخامس — مدة التنفيذ:
+يبدأ التنفيذ من {START_DATE} ويلتزم الطرف الثاني بإنجاز الأعمال خلال {COMPLETION_PERIOD}.
+
+البند السادس — غرامة التأخير:
+إذا تأخر الطرف الثاني عن التسليم في الموعد المتفق عليه، يلتزم بغرامة قدرها {PENALTY_PER_DELAY} عن كل فترة تأخير، دون حاجة إلى تنبيه أو إنذار.
+
+البند السابع — الضمان:
+يضمن الطرف الثاني جودة الأعمال وسلامتها لمدة {WARRANTY_PERIOD} من تاريخ التسليم النهائي، ويلتزم بإصلاح أي عيب يظهر خلال هذه المدة على نفقته، مع مراعاة أحكام ضمان المهندسين والمقاولين الواردة بالمادتين 651 و652 من القانون المدني.
+
+البند الثامن — الإشراف والمعاينة:
+للطرف الأول حق الإشراف على سير الأعمال ومعاينتها في أي وقت دون تعطيل التنفيذ.
+
+البند التاسع — الفسخ:
+في حالة إخلال أي من الطرفين بالتزاماته الجوهرية يحق للطرف الآخر فسخ العقد والمطالبة بالتعويض عن الأضرار.
+
+البند العاشر — الاختصاص القضائي:
+تختص محاكم {JURISDICTION} بالنظر في أي نزاع ينشأ عن هذا العقد.
+
+يُحرَّر هذا العقد من نسختين بيد كل طرف نسخة للعمل بموجبها.
+
+الطرف الأول (رب العمل): _________________ التاريخ: {SIGNING_DATE}
+الطرف الثاني (المقاول): _________________ التاريخ: {SIGNING_DATE}
+"""
+
+AGENCY = """عقد وكالة (توكيل)
+(وفقاً لأحكام القانون المدني المصري رقم 131 لسنة 1948 — المواد 699 وما بعدها)
+
+أنه في يوم {SIGNING_DATE} تحرر هذا العقد بين كل من:
+
+الطرف الأول (الموكِّل): {PRINCIPAL_NAME}
+ويحمل بطاقة رقم: {PRINCIPAL_ID}
+المقيم في: {PRINCIPAL_ADDRESS}
+
+الطرف الثاني (الوكيل): {AGENT_NAME}
+ويحمل بطاقة رقم: {AGENT_ID}
+المقيم في: {AGENT_ADDRESS}
+
+البند الأول — محل الوكالة:
+وكّل الطرف الأول الطرف الثاني وكالة {AGENCY_TYPE} في مباشرة الأعمال التالية:
+{AGENCY_SCOPE}
+
+البند الثاني — حدود الوكالة:
+يلتزم الوكيل بأن ينفذ الوكالة في حدود ما رسمه له الموكِّل، وأن يبذل في تنفيذها عناية الشخص المعتاد، ولا يجوز له تجاوز حدود وكالته وفقاً للمادة 701 من القانون المدني.
+
+البند الثالث — الأجر:
+حُددت هذه الوكالة بـ: {REMUNERATION}
+
+البند الرابع — التزامات الوكيل:
+يلتزم الوكيل بموافاة الموكِّل بالمعلومات الضرورية عن حالة تنفيذ الوكالة وبتقديم حساب عنها، ورد ما استلمه لحساب الموكِّل.
+
+البند الخامس — مدة الوكالة:
+تسري هذه الوكالة لمدة {DURATION}، وتنتهي بانتهائها أو بإتمام العمل الموكَّل فيه أو بعزل الوكيل أو باعتزاله وفقاً لأحكام القانون.
+
+البند السادس — الاختصاص القضائي:
+تختص محاكم {JURISDICTION} بالنظر في أي نزاع ينشأ عن هذا العقد.
+
+يُحرَّر هذا العقد من نسختين بيد كل طرف نسخة للعمل بموجبها.
+
+الطرف الأول (الموكِّل): _________________ التاريخ: {SIGNING_DATE}
+الطرف الثاني (الوكيل): _________________ التاريخ: {SIGNING_DATE}
+"""
+
+LOAN = """عقد قرض
+(وفقاً لأحكام القانون المدني المصري رقم 131 لسنة 1948 — المواد 538 وما بعدها)
+
+أنه في يوم {SIGNING_DATE} تحرر هذا العقد بين كل من:
+
+الطرف الأول (المُقرِض): {LENDER_NAME}
+ويحمل بطاقة رقم: {LENDER_ID}
+المقيم في: {LENDER_ADDRESS}
+
+الطرف الثاني (المُقترِض): {BORROWER_NAME}
+ويحمل بطاقة رقم: {BORROWER_ID}
+المقيم في: {BORROWER_ADDRESS}
+
+البند الأول — مبلغ القرض:
+أقرّ الطرف الثاني بأنه استلم من الطرف الأول على سبيل القرض مبلغاً وقدره {LOAN_AMOUNT} جنيه مصري (فقط {LOAN_AMOUNT_WORDS} لا غير)، وأصبح المبلغ في ذمته وتحت تصرفه.
+
+البند الثاني — الغرض:
+خُصِّص هذا القرض للغرض التالي: {LOAN_PURPOSE}
+
+البند الثالث — السداد:
+يتعهد الطرف الثاني برد كامل مبلغ القرض إلى الطرف الأول بموجب: {REPAYMENT_METHOD}، على أن يتم السداد بحلول تاريخ {REPAYMENT_DATE}.
+
+البند الرابع — الضمانات:
+ضماناً للوفاء بالقرض، قدّم الطرف الثاني ما يلي: {GUARANTEES}
+
+البند الخامس — التأخير في السداد:
+إذا تأخر الطرف الثاني عن السداد في الموعد المتفق عليه، يحق للطرف الأول المطالبة بكامل المبلغ واتخاذ الإجراءات القانونية لاستيفاء حقه.
+
+البند السادس — الاختصاص القضائي:
+تختص محاكم {JURISDICTION} بالنظر في أي نزاع ينشأ عن هذا العقد.
+
+يُحرَّر هذا العقد من نسختين بيد كل طرف نسخة للعمل بموجبها.
+
+الطرف الأول (المُقرِض): _________________ التاريخ: {SIGNING_DATE}
+الطرف الثاني (المُقترِض): _________________ التاريخ: {SIGNING_DATE}
+الشاهد الأول: ___________________
+الشاهد الثاني: __________________
+"""
+
+PARTNERSHIP = """عقد شركة (شراكة)
+(وفقاً لأحكام القانون المدني المصري رقم 131 لسنة 1948 — المواد 505 وما بعدها)
+
+أنه في يوم {SIGNING_DATE} تحرر هذا العقد بين كل من:
+
+الطرف الأول: {PARTNER1_NAME}
+ويحمل بطاقة رقم: {PARTNER1_ID}
+المقيم في: {PARTNER1_ADDRESS}
+
+الطرف الثاني: {PARTNER2_NAME}
+ويحمل بطاقة رقم: {PARTNER2_ID}
+المقيم في: {PARTNER2_ADDRESS}
+
+اتفق الطرفان على تأسيس شركة فيما بينهما وفقاً للبنود الآتية:
+
+البند الأول — اسم الشركة:
+تحمل الشركة اسم: {COMPANY_NAME}
+
+البند الثاني — غرض الشركة:
+يكون غرض الشركة: {COMPANY_PURPOSE}
+
+البند الثالث — المركز الرئيسي:
+يقع المركز الرئيسي للشركة في: {COMPANY_HEADQUARTERS}
+
+البند الرابع — رأس المال والحصص:
+حُدِّد رأس مال الشركة بمبلغ {CAPITAL} جنيه مصري، موزعاً على الشركاء كالآتي:
+- حصة الطرف الأول: {PARTNER1_SHARE}
+- حصة الطرف الثاني: {PARTNER2_SHARE}
+
+البند الخامس — توزيع الأرباح والخسائر:
+تُوزَّع الأرباح والخسائر بين الشركاء على النحو التالي: {PROFIT_LOSS_DISTRIBUTION}
+ويقع باطلاً كل شرط يقضي بحرمان أحد الشركاء من الربح أو بإعفائه من الخسارة وفقاً للمادة 515 من القانون المدني.
+
+البند السادس — إدارة الشركة:
+تُسنَد إدارة الشركة إلى: {MANAGEMENT}، ويلتزم المدير بإدارة الشركة لتحقيق غرضها وبذل عناية الشخص المعتاد.
+
+البند السابع — مدة الشركة:
+مدة الشركة {DURATION} تبدأ من تاريخ تحرير هذا العقد.
+
+البند الثامن — الفسخ والتصفية:
+تنتهي الشركة بانتهاء مدتها أو بانتهاء غرضها أو باتفاق الشركاء، وتتم تصفيتها وتوزيع أموالها وفقاً لأحكام القانون المدني.
+
+البند التاسع — الاختصاص القضائي:
+تختص محاكم {JURISDICTION} بالنظر في أي نزاع ينشأ عن هذا العقد.
+
+يُحرَّر هذا العقد من نسختين بيد كل طرف نسخة للعمل بموجبها.
+
+الطرف الأول: _________________ التاريخ: {SIGNING_DATE}
+الطرف الثاني: _________________ التاريخ: {SIGNING_DATE}
+"""
+
 # ── Registry ───────────────────────────────────────────────────
 TEMPLATES: dict[str, str] = {
-    "rental":     RENTAL,
-    "employment": EMPLOYMENT,
-    "nda":        NDA,
-    "sale":       SALE,
+    "rental":      RENTAL,
+    "employment":  EMPLOYMENT,
+    "nda":         NDA,
+    "sale":        SALE,
+    "contracting": CONTRACTING,
+    "agency":      AGENCY,
+    "loan":        LOAN,
+    "partnership": PARTNERSHIP,
 }
 
 TEMPLATE_NAMES_AR: dict[str, str] = {
-    "rental":     "عقد إيجار",
-    "employment": "عقد عمل",
-    "nda":        "اتفاقية سرية وعدم إفصاح",
-    "sale":       "عقد بيع",
+    "rental":      "عقد إيجار",
+    "employment":  "عقد عمل",
+    "nda":         "اتفاقية سرية وعدم إفصاح",
+    "sale":        "عقد بيع",
+    "contracting": "عقد مقاولة",
+    "agency":      "عقد وكالة (توكيل)",
+    "loan":        "عقد قرض",
+    "partnership": "عقد شركة (شراكة)",
+}
+
+# Short Arabic description shown on each contract-type card.
+TEMPLATE_DESCRIPTIONS_AR: dict[str, str] = {
+    "rental":      "عقد إيجار أملاك وفق القانون 4 لسنة 1996",
+    "employment":  "عقد عمل وفق قانون العمل رقم 12 لسنة 2003",
+    "nda":         "اتفاقية سرية وعدم إفصاح بين طرفين",
+    "sale":        "عقد بيع مع ضمانات القانون المدني",
+    "contracting": "عقد مقاولة لتنفيذ أعمال وفق القانون المدني",
+    "agency":      "توكيل شخص للقيام بأعمال نيابةً عنك",
+    "loan":        "عقد قرض مبلغ مالي مع شروط السداد",
+    "partnership": "عقد تأسيس شركة/شراكة بين طرفين",
 }
 
 # Required placeholders per template (used for validation)
@@ -316,4 +513,167 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
         "DELIVERY_DATE", "DELIVERY_LOCATION", "WARRANTY_PERIOD",
         "JURISDICTION", "SIGNING_DATE",
     ],
+    "contracting": [
+        "SIGNING_DATE",
+        "OWNER_NAME", "OWNER_ADDRESS",
+        "CONTRACTOR_NAME", "CONTRACTOR_ADDRESS",
+        "WORK_DESCRIPTION", "WORK_LOCATION", "MATERIALS_PARTY",
+        "TOTAL_VALUE", "PAYMENT_TERMS",
+        "START_DATE", "COMPLETION_PERIOD", "PENALTY_PER_DELAY", "WARRANTY_PERIOD",
+        "JURISDICTION",
+    ],
+    "agency": [
+        "SIGNING_DATE",
+        "PRINCIPAL_NAME", "PRINCIPAL_ID", "PRINCIPAL_ADDRESS",
+        "AGENT_NAME", "AGENT_ID", "AGENT_ADDRESS",
+        "AGENCY_TYPE", "AGENCY_SCOPE", "REMUNERATION", "DURATION",
+        "JURISDICTION",
+    ],
+    "loan": [
+        "SIGNING_DATE",
+        "LENDER_NAME", "LENDER_ID", "LENDER_ADDRESS",
+        "BORROWER_NAME", "BORROWER_ID", "BORROWER_ADDRESS",
+        "LOAN_AMOUNT", "LOAN_AMOUNT_WORDS", "LOAN_PURPOSE",
+        "REPAYMENT_METHOD", "REPAYMENT_DATE", "GUARANTEES",
+        "JURISDICTION",
+    ],
+    "partnership": [
+        "SIGNING_DATE",
+        "PARTNER1_NAME", "PARTNER1_ID", "PARTNER1_ADDRESS",
+        "PARTNER2_NAME", "PARTNER2_ID", "PARTNER2_ADDRESS",
+        "COMPANY_NAME", "COMPANY_PURPOSE", "COMPANY_HEADQUARTERS",
+        "CAPITAL", "PARTNER1_SHARE", "PARTNER2_SHARE",
+        "PROFIT_LOSS_DISTRIBUTION", "MANAGEMENT", "DURATION",
+        "JURISDICTION",
+    ],
+}
+
+# Arabic label for every placeholder key across all templates. Served to the
+# frontend so the form fields are labeled without duplicating text there.
+FIELD_LABELS: dict[str, str] = {
+    # shared
+    "SIGNING_DAY": "يوم التوقيع",
+    "SIGNING_DATE": "تاريخ التوقيع",
+    "START_DATE": "تاريخ البدء",
+    "END_DATE": "تاريخ الانتهاء",
+    "DURATION": "المدة",
+    "JURISDICTION": "الاختصاص القضائي (المحكمة)",
+    "ADDITIONAL_TERMS": "شروط إضافية",
+    # rental
+    "LANDLORD_NAME": "اسم المؤجر",
+    "LANDLORD_NATIONALITY": "جنسية المؤجر",
+    "LANDLORD_ADDRESS": "عنوان المؤجر",
+    "TENANT_NAME": "اسم المستأجر",
+    "TENANT_NATIONALITY": "جنسية المستأجر",
+    "TENANT_ADDRESS": "عنوان المستأجر",
+    "PROPERTY_NUMBER": "رقم العقار",
+    "PROPERTY_STREET": "الشارع",
+    "PROPERTY_DISTRICT": "الحي / القسم",
+    "RENTAL_PURPOSE": "الغرض من الإيجار",
+    "LEASE_DURATION": "مدة الإيجار",
+    "RENEWAL_TERMS": "شروط التجديد",
+    "NOTICE_PERIOD": "مدة الإخطار",
+    "DEFAULT_RENEWAL_PERIOD": "مدة التجديد الافتراضية",
+    "RENT_AMOUNT": "قيمة الإيجار",
+    "RENT_FREQUENCY": "دورية الإيجار (شهري/سنوي)",
+    "PAYMENT_TIMING": "موعد السداد",
+    "ADVANCE_AMOUNT": "مقدم الإيجار (رقماً)",
+    "ADVANCE_AMOUNT_WORDS": "مقدم الإيجار (كتابةً)",
+    "LATE_PAYMENT_GRACE_PERIOD": "مهلة التأخر في السداد",
+    # employment
+    "EMPLOYER_NAME": "اسم صاحب العمل",
+    "EMPLOYER_TAX_ID": "السجل التجاري / الرقم الضريبي",
+    "EMPLOYER_ADDRESS": "مقر صاحب العمل",
+    "EMPLOYEE_NAME": "اسم العامل",
+    "EMPLOYEE_NATIONAL_ID": "الرقم القومي للعامل",
+    "EMPLOYEE_QUALIFICATION": "المؤهل الدراسي",
+    "EMPLOYEE_ADDRESS": "عنوان العامل",
+    "JOB_TITLE": "المسمى الوظيفي",
+    "DEPARTMENT": "الإدارة / القسم",
+    "WORK_LOCATION": "مقر العمل",
+    "JOB_DUTIES": "المهام الوظيفية",
+    "CONTRACT_TYPE": "نوع العقد (محدد/غير محدد المدة)",
+    "END_DATE_CLAUSE": "بند انتهاء العقد",
+    "BASIC_SALARY": "الأجر الأساسي (جنيه)",
+    "ALLOWANCES": "البدلات",
+    "TOTAL_SALARY": "إجمالي الأجر الشهري (جنيه)",
+    "DAILY_HOURS": "ساعات العمل اليومية",
+    "REST_DAYS": "أيام الراحة الأسبوعية",
+    "NON_COMPETE_PERIOD": "مدة عدم المنافسة / السرية",
+    # nda
+    "DISCLOSING_PARTY_NAME": "الطرف المُفصِح",
+    "DISCLOSING_PARTY_ID": "رقم هوية/سجل الطرف المُفصِح",
+    "DISCLOSING_PARTY_ADDRESS": "عنوان الطرف المُفصِح",
+    "RECEIVING_PARTY_NAME": "الطرف المُتلقّي",
+    "RECEIVING_PARTY_ID": "رقم هوية/سجل الطرف المُتلقّي",
+    "RECEIVING_PARTY_ADDRESS": "عنوان الطرف المُتلقّي",
+    "PURPOSE": "الغرض من الاتفاقية",
+    "CONFIDENTIAL_INFO_DESCRIPTION": "وصف المعلومات السرية",
+    "POST_TERMINATION_PERIOD": "مدة السرية بعد الانتهاء",
+    # sale
+    "SELLER_NAME": "اسم البائع",
+    "SELLER_NATIONAL_ID": "رقم بطاقة البائع",
+    "SELLER_ADDRESS": "عنوان البائع",
+    "BUYER_NAME": "اسم المشتري",
+    "BUYER_NATIONAL_ID": "رقم بطاقة المشتري",
+    "BUYER_ADDRESS": "عنوان المشتري",
+    "ITEM_DESCRIPTION": "وصف المبيع",
+    "ITEM_CONDITION": "حالة المبيع",
+    "PROPERTY_DETAILS": "تفاصيل إضافية للمبيع",
+    "TOTAL_PRICE": "الثمن الإجمالي (جنيه)",
+    "DOWN_PAYMENT": "المقدم (جنيه)",
+    "REMAINING_AMOUNT": "المبلغ المتبقي (جنيه)",
+    "PAYMENT_METHOD": "طريقة سداد الباقي",
+    "DELIVERY_DATE": "تاريخ التسليم",
+    "DELIVERY_LOCATION": "مكان التسليم",
+    "WARRANTY_PERIOD": "مدة الضمان",
+    # contracting
+    "OWNER_NAME": "اسم رب العمل",
+    "OWNER_ADDRESS": "عنوان رب العمل",
+    "CONTRACTOR_NAME": "اسم المقاول",
+    "CONTRACTOR_ADDRESS": "عنوان المقاول",
+    "WORK_DESCRIPTION": "وصف الأعمال المطلوبة",
+    "MATERIALS_PARTY": "الطرف المسؤول عن توريد المواد",
+    "TOTAL_VALUE": "قيمة المقاولة (جنيه)",
+    "PAYMENT_TERMS": "شروط الدفع",
+    "COMPLETION_PERIOD": "مدة التنفيذ",
+    "PENALTY_PER_DELAY": "غرامة التأخير",
+    # agency
+    "PRINCIPAL_NAME": "اسم الموكِّل",
+    "PRINCIPAL_ID": "رقم بطاقة الموكِّل",
+    "PRINCIPAL_ADDRESS": "عنوان الموكِّل",
+    "AGENT_NAME": "اسم الوكيل",
+    "AGENT_ID": "رقم بطاقة الوكيل",
+    "AGENT_ADDRESS": "عنوان الوكيل",
+    "AGENCY_TYPE": "نوع الوكالة (خاصة/عامة)",
+    "AGENCY_SCOPE": "الأعمال الموكَّل بها",
+    "REMUNERATION": "الأجر (بأجر/بدون أجر)",
+    # loan
+    "LENDER_NAME": "اسم المُقرِض",
+    "LENDER_ID": "رقم بطاقة المُقرِض",
+    "LENDER_ADDRESS": "عنوان المُقرِض",
+    "BORROWER_NAME": "اسم المُقترِض",
+    "BORROWER_ID": "رقم بطاقة المُقترِض",
+    "BORROWER_ADDRESS": "عنوان المُقترِض",
+    "LOAN_AMOUNT": "مبلغ القرض (رقماً)",
+    "LOAN_AMOUNT_WORDS": "مبلغ القرض (كتابةً)",
+    "LOAN_PURPOSE": "الغرض من القرض",
+    "REPAYMENT_METHOD": "طريقة السداد",
+    "REPAYMENT_DATE": "تاريخ السداد",
+    "GUARANTEES": "الضمانات المقدمة",
+    # partnership
+    "PARTNER1_NAME": "اسم الطرف الأول",
+    "PARTNER1_ID": "رقم بطاقة الطرف الأول",
+    "PARTNER1_ADDRESS": "عنوان الطرف الأول",
+    "PARTNER2_NAME": "اسم الطرف الثاني",
+    "PARTNER2_ID": "رقم بطاقة الطرف الثاني",
+    "PARTNER2_ADDRESS": "عنوان الطرف الثاني",
+    "COMPANY_NAME": "اسم الشركة",
+    "COMPANY_PURPOSE": "غرض الشركة",
+    "COMPANY_HEADQUARTERS": "المركز الرئيسي للشركة",
+    "CAPITAL": "رأس المال (جنيه)",
+    "PARTNER1_SHARE": "حصة الطرف الأول",
+    "PARTNER2_SHARE": "حصة الطرف الثاني",
+    "PROFIT_LOSS_DISTRIBUTION": "توزيع الأرباح والخسائر",
+    "MANAGEMENT": "إدارة الشركة",
 }
