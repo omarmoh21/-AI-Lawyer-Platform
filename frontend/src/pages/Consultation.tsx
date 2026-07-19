@@ -9,7 +9,6 @@ import {
   Scale,
   ScanText,
   Send,
-  ShieldCheck,
   X,
 } from 'lucide-react'
 import AppShell from '../components/layout/AppShell'
@@ -67,7 +66,6 @@ export default function Consultation() {
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const latestTurn = turns[turns.length - 1]
   const busy = isThinking || pendingReview !== null
 
   const pushTurn = (q: string, answer: string) => {
@@ -410,25 +408,6 @@ export default function Consultation() {
             onSelect={handleSelectSession}
             onNewChat={handleNewChat}
           />
-        </aside>
-
-        <aside className="hidden w-80 shrink-0 lg:block">
-          <Card className="sticky top-24 p-6">
-            <div className="flex items-center gap-2 text-navy-900">
-              <ShieldCheck size={18} className="text-gold-600" />
-              <h3 className="text-sm font-bold">كيف تعمل المنصة؟</h3>
-            </div>
-            <ul className="mt-3 space-y-2 text-xs leading-relaxed text-navy-500">
-              <li>• النصوص القانونية المقتبسة تظهر داخل الإجابة مع رقم المادة واسم القانون.</li>
-              <li>• أسئلة المتابعة تفهم سياق المحادثة السابقة.</li>
-              <li>• عند إرفاق مستند، تُراجع النص المستخرج بنفسك قبل التحليل.</li>
-            </ul>
-            {latestTurn && (
-              <p className="mt-4 border-t border-navy-100 pt-3 text-xs text-navy-400">
-                عدد الأسئلة في هذه الجلسة: {turns.length}
-              </p>
-            )}
-          </Card>
         </aside>
       </div>
     </AppShell>
