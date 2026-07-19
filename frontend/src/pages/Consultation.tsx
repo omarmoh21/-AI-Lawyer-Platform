@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   CheckCircle2,
   FileText,
+  Loader2,
   Mic,
   Paperclip,
   Plus,
@@ -16,7 +17,13 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import AnswerText from '../components/ui/AnswerText'
 import ChatHistorySidebar from '../components/consultation/ChatHistorySidebar'
-import { extractDocuments, getSessionMessages, reviewDocuments, sendChat } from '../lib/api'
+import {
+  extractDocuments,
+  getSessionMessages,
+  reviewDocuments,
+  sendChat,
+  transcribeAudio,
+} from '../lib/api'
 import type { ChatMessageOut } from '../lib/api'
 import type { ConsultationTurn } from '../types'
 
@@ -62,9 +69,13 @@ export default function Consultation() {
   const [pendingReview, setPendingReview] = useState<PendingReview | null>(null)
   const [isThinking, setIsThinking] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [micError, setMicError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   const busy = isThinking || pendingReview !== null
 
@@ -109,13 +120,56 @@ export default function Consultation() {
     }
   }
 
+  const startRecording = async () => {
+    setMicError(null)
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicError('التسجيل الصوتي غير مدعوم في هذا المتصفح')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      audioChunksRef.current = []
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data)
+      }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop())
+        setIsRecording(false)
+        const blob = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || 'audio/webm',
+        })
+        if (blob.size === 0) return
+        setIsTranscribing(true)
+        try {
+          const text = await transcribeAudio(blob)
+          if (text) setQuestion((prev) => (prev ? `${prev} ${text}` : text))
+          else setMicError('لم يتم التعرف على أي كلام في التسجيل')
+        } catch (error) {
+          setMicError(
+            error instanceof Error ? error.message : 'تعذّر تفريغ التسجيل الصوتي',
+          )
+        } finally {
+          setIsTranscribing(false)
+        }
+      }
+
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setIsRecording(true)
+    } catch {
+      setMicError('تعذّر الوصول إلى الميكروفون — تأكد من منح الإذن')
+    }
+  }
+
   const handleMic = () => {
-    if (isRecording) return
-    setIsRecording(true)
-    window.setTimeout(() => {
-      setQuestion('ما هي حقوق العامل في حالة الفصل التعسفي؟')
-      setIsRecording(false)
-    }, 1800)
+    if (isTranscribing) return
+    if (isRecording) {
+      mediaRecorderRef.current?.stop()
+    } else {
+      startRecording()
+    }
   }
 
   const handleAttach = (files: FileList | null) => {
@@ -367,14 +421,28 @@ export default function Consultation() {
               <button
                 type="button"
                 onClick={handleMic}
+                disabled={isTranscribing}
                 className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${
                   isRecording
                     ? 'animate-pulse bg-red-500 text-white'
-                    : 'bg-navy-50 text-navy-600 hover:bg-navy-100'
+                    : isTranscribing
+                      ? 'bg-navy-100 text-navy-400'
+                      : 'bg-navy-50 text-navy-600 hover:bg-navy-100'
                 }`}
-                aria-label="التحدث بدلاً من الكتابة"
+                aria-label={
+                  isRecording
+                    ? 'إيقاف التسجيل'
+                    : isTranscribing
+                      ? 'جارٍ التفريغ'
+                      : 'التحدث بدلاً من الكتابة'
+                }
+                title={isRecording ? 'اضغط لإيقاف التسجيل' : 'التحدث بدلاً من الكتابة'}
               >
-                <Mic size={18} />
+                {isTranscribing ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Mic size={18} />
+                )}
               </button>
               <textarea
                 value={question}
@@ -398,6 +466,20 @@ export default function Consultation() {
                 إرسال
               </Button>
             </div>
+
+            {(isRecording || isTranscribing || micError) && (
+              <p
+                className={`mt-2 px-1 text-xs font-semibold ${
+                  micError ? 'text-red-600' : 'text-navy-500'
+                }`}
+              >
+                {isRecording
+                  ? '● جارٍ التسجيل... اضغط على الميكروفون للإيقاف والتفريغ'
+                  : isTranscribing
+                    ? 'جارٍ تفريغ التسجيل...'
+                    : micError}
+              </p>
+            )}
           </div>
         </div>
 

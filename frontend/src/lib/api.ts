@@ -181,6 +181,20 @@ export async function extractDocuments(
   return handleResponse<DocumentReviewPayload>(response)
 }
 
+export async function transcribeAudio(blob: Blob): Promise<string> {
+  const form = new FormData()
+  // Suffix hints the backend at the container format (MediaRecorder → webm).
+  const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+  form.append('audio', blob, `recording.${ext}`)
+  const response = await fetch(`${API_BASE_URL}/transcribe`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  })
+  const data = await handleResponse<{ text: string }>(response)
+  return data.text
+}
+
 export interface ContractFieldDef {
   key: string
   label: string
