@@ -147,3 +147,20 @@ def get_session_messages(
         .order_by(ChatMessage.id.asc())
         .all()
     )
+
+
+@router.delete("/chat/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    session = db.get(ChatSession, session_id)
+    if session is None or session.user_id != current_user.id:
+        # Same 404 for "not found" and "not owned" — don't leak existence.
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Chat session not found")
+
+    # No DB-level cascade on chat_messages, so delete the messages first.
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
+    db.delete(session)
+    db.commit()

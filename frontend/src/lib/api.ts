@@ -145,6 +145,17 @@ export async function listChatSessions(): Promise<ChatSessionSummary[]> {
   return handleResponse<ChatSessionSummary[]>(response)
 }
 
+export async function deleteChatSession(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/chat/sessions/${sessionId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `${response.status} ${response.statusText}`)
+  }
+}
+
 export interface ChatMessageOut {
   role: string
   content: string

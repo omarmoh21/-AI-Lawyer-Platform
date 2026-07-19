@@ -496,6 +496,10 @@ export default function Consultation() {
             refreshKey={historyRefreshKey}
             onSelect={handleSelectSession}
             onNewChat={handleNewChat}
+            onDelete={(id) => {
+              // If the open conversation was the one deleted, clear the view.
+              if (id === sessionId) handleNewChat()
+            }}
           />
         </aside>
       </div>

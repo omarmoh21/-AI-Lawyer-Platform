@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { MessageSquare, Plus } from 'lucide-react'
+import { Check, MessageSquare, Plus, Trash2, X } from 'lucide-react'
 import Card from '../ui/Card'
-import { listChatSessions } from '../../lib/api'
+import { deleteChatSession, listChatSessions } from '../../lib/api'
 import type { ChatSessionSummary } from '../../lib/api'
 
 interface ChatHistorySidebarProps {
@@ -9,6 +9,7 @@ interface ChatHistorySidebarProps {
   refreshKey: number
   onSelect: (sessionId: string) => void
   onNewChat: () => void
+  onDelete: (sessionId: string) => void
 }
 
 export default function ChatHistorySidebar({
@@ -16,9 +17,11 @@ export default function ChatHistorySidebar({
   refreshKey,
   onSelect,
   onNewChat,
+  onDelete,
 }: ChatHistorySidebarProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -36,6 +39,17 @@ export default function ChatHistorySidebar({
       cancelled = true
     }
   }, [refreshKey])
+
+  const handleDelete = async (id: string) => {
+    setConfirmId(null)
+    try {
+      await deleteChatSession(id)
+      setSessions((prev) => prev.filter((s) => s.id !== id))
+      onDelete(id)
+    } catch {
+      /* leave the session in the list if the delete failed */
+    }
+  }
 
   return (
     <Card className="sticky top-24 flex max-h-[calc(100svh-7rem)] flex-col p-4">
@@ -58,23 +72,67 @@ export default function ChatHistorySidebar({
           <p className="px-2 py-4 text-center text-xs text-navy-400">لا توجد محادثات سابقة بعد</p>
         )}
 
-        {sessions.map((session) => (
-          <button
-            key={session.id}
-            type="button"
-            onClick={() => onSelect(session.id)}
-            className={`flex w-full items-start gap-2 rounded-xl px-3 py-2.5 text-start text-xs font-semibold transition-colors ${
-              session.id === activeSessionId
-                ? 'bg-navy-900 text-white'
-                : 'text-navy-600 hover:bg-navy-50 hover:text-navy-950'
-            }`}
-          >
-            <MessageSquare size={14} className="mt-0.5 shrink-0" />
-            <span className="line-clamp-2 leading-relaxed">
-              {session.title || 'محادثة بدون عنوان'}
-            </span>
-          </button>
-        ))}
+        {sessions.map((session) => {
+          const isActive = session.id === activeSessionId
+          const isConfirming = confirmId === session.id
+          return (
+            <div
+              key={session.id}
+              className={`group flex items-center gap-1 rounded-xl transition-colors ${
+                isActive ? 'bg-navy-900 text-white' : 'text-navy-600 hover:bg-navy-50'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => onSelect(session.id)}
+                className="flex min-w-0 flex-1 items-start gap-2 px-3 py-2.5 text-start text-xs font-semibold"
+              >
+                <MessageSquare size={14} className="mt-0.5 shrink-0" />
+                <span className="line-clamp-2 leading-relaxed">
+                  {session.title || 'محادثة بدون عنوان'}
+                </span>
+              </button>
+
+              {isConfirming ? (
+                <div className="flex shrink-0 items-center gap-0.5 pe-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(session.id)}
+                    aria-label="تأكيد الحذف"
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg ${
+                      isActive ? 'text-red-300 hover:bg-white/10' : 'text-red-600 hover:bg-red-50'
+                    }`}
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmId(null)}
+                    aria-label="إلغاء"
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg ${
+                      isActive ? 'text-white/70 hover:bg-white/10' : 'text-navy-400 hover:bg-navy-100'
+                    }`}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmId(session.id)}
+                  aria-label="حذف المحادثة"
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg pe-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 ${
+                    isActive
+                      ? 'me-1.5 text-white/60 hover:text-red-300'
+                      : 'me-1.5 text-navy-300 hover:text-red-600'
+                  }`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
     </Card>
   )
