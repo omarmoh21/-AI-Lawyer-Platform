@@ -22,8 +22,8 @@ import {
   getSessionMessages,
   reviewDocuments,
   sendChat,
-  transcribeAudio,
 } from '../lib/api'
+import { startLiveTranscription, type LiveSession } from '../lib/liveTranscribe'
 import type { ChatMessageOut } from '../lib/api'
 import type { ConsultationTurn } from '../types'
 
@@ -74,8 +74,9 @@ export default function Consultation() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
+  const liveRef = useRef<LiveSession | null>(null)
+  const questionBaseRef = useRef('')
+  const finalizedRef = useRef('')
 
   const busy = isThinking || pendingReview !== null
 
@@ -120,55 +121,61 @@ export default function Consultation() {
     }
   }
 
-  const startRecording = async () => {
+  const stopLive = async () => {
+    const live = liveRef.current
+    liveRef.current = null
+    setIsRecording(false)
+    // Drop any dangling interim text; keep only what was committed.
+    setQuestion(questionBaseRef.current + finalizedRef.current)
+    if (live) {
+      try {
+        await live.stop()
+      } catch {
+        /* already stopped */
+      }
+    }
+  }
+
+  const handleMic = async () => {
+    if (isTranscribing) return
+    if (isRecording) {
+      await stopLive()
+      return
+    }
     setMicError(null)
     if (!navigator.mediaDevices?.getUserMedia) {
       setMicError('التسجيل الصوتي غير مدعوم في هذا المتصفح')
       return
     }
+
+    setIsTranscribing(true)
+    questionBaseRef.current = question.trim() ? `${question.trim()} ` : ''
+    finalizedRef.current = ''
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
-      audioChunksRef.current = []
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data)
-      }
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop())
-        setIsRecording(false)
-        const blob = new Blob(audioChunksRef.current, {
-          type: recorder.mimeType || 'audio/webm',
-        })
-        if (blob.size === 0) return
-        setIsTranscribing(true)
-        try {
-          const text = await transcribeAudio(blob)
-          if (text) setQuestion((prev) => (prev ? `${prev} ${text}` : text))
-          else setMicError('لم يتم التعرف على أي كلام في التسجيل')
-        } catch (error) {
-          setMicError(
-            error instanceof Error ? error.message : 'تعذّر تفريغ التسجيل الصوتي',
-          )
-        } finally {
-          setIsTranscribing(false)
-        }
-      }
-
-      mediaRecorderRef.current = recorder
-      recorder.start()
+      const live = await startLiveTranscription({
+        onPartial: (text) => {
+          const sep = finalizedRef.current && text ? ' ' : ''
+          setQuestion(questionBaseRef.current + finalizedRef.current + sep + text)
+        },
+        onFinal: (text) => {
+          if (text) finalizedRef.current += (finalizedRef.current ? ' ' : '') + text
+          setQuestion(questionBaseRef.current + finalizedRef.current)
+        },
+        onError: (message) => {
+          setMicError(message)
+          void stopLive()
+        },
+      })
+      liveRef.current = live
+      setIsTranscribing(false)
       setIsRecording(true)
-    } catch {
-      setMicError('تعذّر الوصول إلى الميكروفون — تأكد من منح الإذن')
-    }
-  }
-
-  const handleMic = () => {
-    if (isTranscribing) return
-    if (isRecording) {
-      mediaRecorderRef.current?.stop()
-    } else {
-      startRecording()
+    } catch (error) {
+      setMicError(
+        error instanceof Error
+          ? error.message
+          : 'تعذّر الوصول إلى الميكروفون — تأكد من منح الإذن',
+      )
+      setIsTranscribing(false)
     }
   }
 
@@ -474,9 +481,9 @@ export default function Consultation() {
                 }`}
               >
                 {isRecording
-                  ? '● جارٍ التسجيل... اضغط على الميكروفون للإيقاف والتفريغ'
+                  ? '● جارٍ التسجيل والتفريغ المباشر... اضغط على الميكروفون للإيقاف'
                   : isTranscribing
-                    ? 'جارٍ تفريغ التسجيل...'
+                    ? 'جارٍ الاتصال بخدمة التفريغ...'
                     : micError}
               </p>
             )}
