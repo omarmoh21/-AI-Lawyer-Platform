@@ -73,6 +73,7 @@ export default function Consultation() {
   const [micError, setMicError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
+  const [fileInputKey, setFileInputKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const liveRef = useRef<LiveSession | null>(null)
   const questionBaseRef = useRef('')
@@ -182,7 +183,9 @@ export default function Consultation() {
   const handleAttach = (files: FileList | null) => {
     if (!files) return
     setAttachments((prev) => [...prev, ...Array.from(files)])
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    // Remount the input (rather than just clearing .value) so the browser's
+    // file-input state can't get stuck after repeated selections.
+    setFileInputKey((key) => key + 1)
   }
 
   const removeAttachment = (index: number) => {
@@ -418,6 +421,7 @@ export default function Consultation() {
                 <Paperclip size={18} />
               </button>
               <input
+                key={fileInputKey}
                 ref={fileInputRef}
                 type="file"
                 multiple
