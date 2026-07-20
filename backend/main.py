@@ -6,8 +6,12 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from api.routes import articles, auth, chat, contracts, documents, health, transcribe
+from app.core.limiter import limiter
 from app.db.database import Base, engine
 from app.db import models  # noqa: F401 — ensures models are registered before create_all
 
@@ -34,6 +38,9 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI Lawyer API")
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -41,6 +48,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SlowAPIMiddleware)
 
 app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")

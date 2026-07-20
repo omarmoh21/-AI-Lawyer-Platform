@@ -9,7 +9,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.agents import supervisor
 from app.auth.dependencies import get_current_user
+from app.core.limiter import limiter
 from app.db.database import get_db
 from app.db.models import ChatMessage, ChatSession, User
 
@@ -99,7 +100,9 @@ def _persist_new_turn(db: Session, session: ChatSession, new_messages: list) -> 
 
 
 @router.post("/chat", response_model=ChatResponse)
+@limiter.limit("15/minute")
 async def chat(
+    request: Request,
     req: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -125,7 +128,9 @@ async def chat(
 
 
 @router.post("/chat/stream")
+@limiter.limit("15/minute")
 async def chat_stream(
+    request: Request,
     req: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
