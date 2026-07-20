@@ -4,11 +4,13 @@ Conversations are persisted per-user in the database, keyed by session_id;
 the client passes the session_id back on each turn to continue a conversation.
 """
 
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -97,7 +99,7 @@ def _persist_new_turn(db: Session, session: ChatSession, new_messages: list) -> 
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(
+async def chat(
     req: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -106,9 +108,13 @@ def chat(
     history = _load_history(db, session.id)
     turn_start = len(history)
 
-    response, history, docx_path = supervisor.run(
+    response, docx_path = "", None
+    async for event in supervisor.astream(
         req.message, history, extracted_text=req.extracted_text
-    )
+    ):
+        if event["type"] == "done":
+            response = event["response"]
+            docx_path = event.get("docx_path")
 
     _persist_new_turn(db, session, history[turn_start:])
 
@@ -116,6 +122,44 @@ def chat(
         "chat — user %s, session %s, %d turns", current_user.id, session.id, len(history) // 2
     )
     return ChatResponse(session_id=session.id, response=response, docx_path=docx_path)
+
+
+@router.post("/chat/stream")
+async def chat_stream(
+    req: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """Same turn as POST /chat, but streamed as Server-Sent Events so the
+    client can render the answer as it arrives instead of waiting for the
+    whole thing. Each event is a JSON object on one line:
+      {"type": "session", "session_id": "..."}    sent once, immediately
+      {"type": "chunk", "text": "..."}             zero or more live tokens
+      {"type": "done", "response": "...", "docx_path": ...}   always last
+      {"type": "error", "message": "..."}          only on failure
+    """
+    session = _get_or_create_session(db, req.session_id, current_user.id)
+    history = _load_history(db, session.id)
+    turn_start = len(history)
+
+    async def event_source():
+        yield f"data: {json.dumps({'type': 'session', 'session_id': session.id})}\n\n"
+        try:
+            async for event in supervisor.astream(
+                req.message, history, extracted_text=req.extracted_text
+            ):
+                if event["type"] == "done":
+                    _persist_new_turn(db, session, history[turn_start:])
+                    logger.info(
+                        "chat — user %s, session %s, %d turns",
+                        current_user.id, session.id, len(history) // 2,
+                    )
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error("chat stream failed: %s", e, exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_source(), media_type="text/event-stream")
 
 
 @router.get("/chat/sessions", response_model=list[SessionOut])

@@ -9,7 +9,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph
 import gradio as gr
 from langgraph.types import Command
 
-from app.agents.supervisor import run as supervisor_run
+from app.agents import supervisor
 from app.agents.ocr_agent import ocr_graph, EXTRACTION_METHOD_LABELS
 from app.services.asr.elevenlabs_asr import transcribe
 
@@ -97,9 +97,11 @@ async def respond(
             gr.update(interactive=False),
         )
 
-    response, conv_history, docx_path = await asyncio.to_thread(
-        supervisor_run, text, conv_history
-    )
+    response, docx_path = None, None
+    async for event in supervisor.astream(text, conv_history):
+        if event["type"] == "done":
+            response = event["response"]
+            docx_path = event.get("docx_path")
     chat_history.append({"role": "assistant", "content": response})
 
     file_update = (
@@ -144,9 +146,11 @@ async def on_approve(
             None, gr.update(interactive=True), gr.update(),
         )
 
-    response, conv_history, docx_path = await asyncio.to_thread(
-        supervisor_run, pending["text"], conv_history, final_text
-    )
+    response, docx_path = None, None
+    async for event in supervisor.astream(pending["text"], conv_history, final_text):
+        if event["type"] == "done":
+            response = event["response"]
+            docx_path = event.get("docx_path")
     chat_history.append({"role": "assistant", "content": response})
 
     file_update = (

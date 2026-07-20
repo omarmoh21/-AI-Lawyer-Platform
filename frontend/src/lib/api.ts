@@ -131,6 +131,62 @@ export async function sendChat(
   return handleResponse<ChatResponse>(response)
 }
 
+export type ChatStreamEvent =
+  | { type: 'session'; session_id: string }
+  | { type: 'chunk'; text: string }
+  | { type: 'done'; response: string; docx_path: string | null }
+  | { type: 'error'; message: string }
+
+/**
+ * Streams one /chat turn over Server-Sent Events. Yields events as they
+ * arrive; callers should treat the final "done" event's `response` as
+ * authoritative even if they were rendering "chunk" events live, since not
+ * every turn produces live chunks (e.g. contract text is copied verbatim
+ * from a tool call rather than generated token-by-token).
+ */
+export async function* streamChat(
+  message: string,
+  sessionId: string | null,
+  extractedText = '',
+): AsyncGenerator<ChatStreamEvent> {
+  const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      message,
+      session_id: sessionId,
+      extracted_text: extractedText,
+    }),
+  })
+  if (!response.ok || !response.body) {
+    const body = await response.json().catch(() => null)
+    throw new Error(body?.detail ?? `${response.status} ${response.statusText}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let sep = buffer.indexOf('\n\n')
+    while (sep !== -1) {
+      const rawEvent = buffer.slice(0, sep)
+      buffer = buffer.slice(sep + 2)
+      for (const line of rawEvent.split('\n')) {
+        if (line.startsWith('data: ')) {
+          yield JSON.parse(line.slice(6)) as ChatStreamEvent
+        }
+      }
+      sep = buffer.indexOf('\n\n')
+    }
+  }
+}
+
 export interface ChatSessionSummary {
   id: string
   title: string | null

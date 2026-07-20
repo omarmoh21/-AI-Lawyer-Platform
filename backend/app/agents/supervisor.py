@@ -41,14 +41,14 @@ def _content_to_text(content) -> str:
 # ── Sub-agent wrappers as tools ────────────────────────────────
 
 @tool(return_direct=True)
-def ask_legal_research(
+async def ask_legal_research(
     query: Annotated[str, "السؤال القانوني المطلوب البحث عنه في قاعدة بيانات القوانين المصرية"],
 ) -> str:
     """
     ابحث في قاعدة بيانات القوانين المصرية عن إجابة قانونية.
     استخدم هذه الأداة لأي سؤال يتعلق بالقانون أو العقوبات أو الحقوق.
     """
-    result = legal_research_agent.invoke(
+    result = await legal_research_agent.ainvoke(
         {"messages": [*_recent_history, HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
@@ -56,14 +56,14 @@ def ask_legal_research(
 
 
 @tool
-def ask_document_agent(
+async def ask_document_agent(
     query: Annotated[str, "الطلب المتعلق بالوثيقة مع النص المستخرج من الصور إن وجد"],
 ) -> str:
     """
     حلّل وثيقة قانونية أو استخرج معلومات منها.
     استخدم هذه الأداة عندما يرفع المستخدم صورة أو وثيقة.
     """
-    result = document_agent.invoke(
+    result = await document_agent.ainvoke(
         {"messages": [*_recent_history, HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
@@ -71,14 +71,14 @@ def ask_document_agent(
 
 
 @tool(return_direct=True)
-def ask_contract_agent(
+async def ask_contract_agent(
     query: Annotated[str, "طلب إنشاء أو تعديل عقد مع البيانات المتوفرة"],
 ) -> str:
     """
     أنشئ أو عدّل عقداً قانونياً مصرياً وأعد نصه الكامل.
     استخدم هذه الأداة لطلبات إنشاء عقود الإيجار أو العمل أو السرية أو البيع.
     """
-    result = contract_agent.invoke(
+    result = await contract_agent.ainvoke(
         {"messages": [*_recent_history, HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
@@ -151,17 +151,58 @@ logger.info("Supervisor ready — routing to 3 specialist agents")
 
 # ── Public interface ───────────────────────────────────────────
 
-def run(
+def _extract_response(messages: list) -> str:
+    """
+    The supervisor's own LLM tends to re-paraphrase what it receives from
+    sub-agents. Grab the raw tool output directly instead of trusting the
+    supervisor's final summary.
+    """
+    response    = None
+    legal_parts = []
+    used_tools  = set()
+    for msg in messages:
+        name = getattr(msg, "name", None)
+        if name == "ask_contract_agent":
+            response = _content_to_text(msg.content)
+            break
+        if name == "ask_legal_research":
+            legal_parts.append(_content_to_text(msg.content))
+        if name:
+            used_tools.add(name)
+
+    # Legal-research answers are already fully formatted — return them
+    # verbatim, but only when no other agent contributed (e.g. a document
+    # analysis step), in which case the supervisor's synthesis is needed.
+    if response is None and legal_parts and used_tools == {"ask_legal_research"}:
+        response = "\n\n".join(legal_parts)
+
+    if response is None:
+        response = _content_to_text(messages[-1].content)
+    return response
+
+
+async def astream(
     text: str,
     conv_history: list,
     extracted_text: str = "",
-) -> tuple[str, list, str | None]:
+):
     """
-    Entry point for the UI.
+    Entry point for the UI — streams the supervisor's turn as it runs.
 
     `extracted_text` is already-OCR'd / human-reviewed document text (see
     app.agents.ocr_agent) to attach to the user's message, if any.
-    Returns (response_text, updated_history, docx_file_path_or_None).
+
+    Yields dicts:
+      - {"type": "chunk", "text": "..."}         live answer tokens, as they
+        become available. Not every turn produces any — e.g. a contract's
+        text is copied verbatim from a tool call rather than generated
+        token-by-token, so nothing streams for that path (see below).
+      - {"type": "done", "response": "...", "docx_path": None}   the final,
+        authoritative answer. Always sent last, exactly once. The frontend
+        should treat this as the source of truth over anything streamed.
+
+    `conv_history` is mutated in place (human + assistant turns appended),
+    matching the previous synchronous `run()` contract.
     """
     content = text
     if extracted_text.strip():
@@ -174,39 +215,49 @@ def run(
     _recent_history.clear()
     _recent_history.extend(conv_history[:-1][-_HISTORY_WINDOW:])
 
+    # Text generated *inside* ask_contract_agent or ask_document_agent is
+    # never the final answer shown to the user: contract text is swapped for
+    # a verbatim tool result (see _extract_response), and document analysis
+    # is fed back to the supervisor's own model for a further synthesis
+    # turn. Only ask_legal_research's own generation is used as-is. Track
+    # those tools' run_ids so nested chat-model chunks under them are
+    # skipped, leaving only the text that actually ends up in the response.
+    suppressed_run_ids: set[str] = set()
+    root_run_id = None
+    final_output = None
+
     try:
-        result = supervisor.invoke(
+        async for event in supervisor.astream_events(
             {"messages": conv_history},
             config={"recursion_limit": 100},
-        )
+        ):
+            if root_run_id is None and not event.get("parent_ids"):
+                root_run_id = event["run_id"]
 
-        # The supervisor's own LLM tends to re-paraphrase what it receives
-        # from sub-agents. Grab the raw tool output directly instead of
-        # trusting the supervisor's final summary.
-        response    = None
-        legal_parts = []
-        used_tools  = set()
-        for msg in result["messages"]:
-            name = getattr(msg, "name", None)
-            if name == "ask_contract_agent":
-                response = _content_to_text(msg.content)
-                break
-            if name == "ask_legal_research":
-                legal_parts.append(_content_to_text(msg.content))
-            if name:
-                used_tools.add(name)
+            kind = event["event"]
 
-        # Legal-research answers are already fully formatted — return them
-        # verbatim, but only when no other agent contributed (e.g. a document
-        # analysis step), in which case the supervisor's synthesis is needed.
-        if response is None and legal_parts and used_tools == {"ask_legal_research"}:
-            response = "\n\n".join(legal_parts)
+            if kind == "on_tool_start" and event["name"] in (
+                "ask_contract_agent", "ask_document_agent",
+            ):
+                suppressed_run_ids.add(event["run_id"])
 
-        if response is None:
-            response = _content_to_text(result["messages"][-1].content)
+            elif kind == "on_chat_model_stream":
+                if suppressed_run_ids.intersection(event.get("parent_ids", ())):
+                    continue
+                piece = _content_to_text(event["data"]["chunk"].content)
+                if piece:
+                    yield {"type": "chunk", "text": piece}
+
+            elif kind == "on_chain_end" and event["run_id"] == root_run_id:
+                final_output = event["data"]["output"]
+
+        if final_output is None:
+            raise RuntimeError("supervisor stream ended without a final result")
+
+        response = _extract_response(final_output["messages"])
     except Exception as e:
         logger.error("Supervisor error: %s", e, exc_info=True)
         response = f"⚠️ حدث خطأ أثناء المعالجة: {e}"
 
     conv_history.append(AIMessage(content=response))
-    return response, conv_history, None
+    yield {"type": "done", "response": response, "docx_path": None}

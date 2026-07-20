@@ -21,7 +21,7 @@ import {
   extractDocuments,
   getSessionMessages,
   reviewDocuments,
-  sendChat,
+  streamChat,
 } from '../lib/api'
 import { startLiveTranscription, type LiveSession } from '../lib/liveTranscribe'
 import type { ChatMessageOut } from '../lib/api'
@@ -72,6 +72,9 @@ export default function Consultation() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [micError, setMicError] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [streamingTurn, setStreamingTurn] = useState<{ question: string; answer: string } | null>(
+    null,
+  )
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const [fileInputKey, setFileInputKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -79,7 +82,7 @@ export default function Consultation() {
   const questionBaseRef = useRef('')
   const finalizedRef = useRef('')
 
-  const busy = isThinking || pendingReview !== null
+  const busy = isThinking || streamingTurn !== null || pendingReview !== null
 
   const pushTurn = (q: string, answer: string) => {
     setTurns((prev) => [
@@ -103,6 +106,7 @@ export default function Consultation() {
     setAttachments([])
     setPendingReview(null)
     setIsThinking(false)
+    setStreamingTurn(null)
   }
 
   const handleSelectSession = async (id: string) => {
@@ -193,15 +197,30 @@ export default function Consultation() {
   }
 
   const askSupervisor = async (q: string, extractedText = '', label?: string) => {
+    const displayQuestion = label ?? q
     setIsThinking(true)
+    setStreamingTurn({ question: displayQuestion, answer: '' })
     try {
-      const result = await sendChat(q, sessionId, extractedText)
-      setSessionId(result.session_id)
-      pushTurn(label ?? q, result.response)
-      setHistoryRefreshKey((key) => key + 1)
+      for await (const event of streamChat(q, sessionId, extractedText)) {
+        if (event.type === 'session') {
+          setSessionId(event.session_id)
+        } else if (event.type === 'chunk') {
+          setIsThinking(false)
+          setStreamingTurn((prev) => (prev ? { ...prev, answer: prev.answer + event.text } : prev))
+        } else if (event.type === 'error') {
+          throw new Error(event.message)
+        } else if (event.type === 'done') {
+          // The final answer is authoritative — it wins over whatever
+          // streamed live (some turns, like contracts, stream nothing at
+          // all since their text is copied verbatim rather than generated).
+          pushTurn(displayQuestion, event.response)
+          setHistoryRefreshKey((key) => key + 1)
+        }
+      }
     } catch (error) {
-      failTurn(label ?? q, error)
+      failTurn(displayQuestion, error)
     } finally {
+      setStreamingTurn(null)
       setIsThinking(false)
     }
   }
@@ -342,6 +361,33 @@ export default function Consultation() {
             </div>
           ))}
 
+          {streamingTurn && (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <div className="max-w-xl rounded-2xl rounded-tl-sm bg-navy-900 px-5 py-3 text-white">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                    {streamingTurn.question}
+                  </p>
+                </div>
+              </div>
+
+              <Card className="p-6">
+                <div className="mb-3 flex items-center gap-2 text-gold-600">
+                  <Scale size={16} />
+                  <span className="text-xs font-bold">الإجابة القانونية</span>
+                </div>
+                {streamingTurn.answer ? (
+                  <AnswerText>{streamingTurn.answer}</AnswerText>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-navy-500">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-gold-500" />
+                    جارٍ البحث في المصادر القانونية...
+                  </div>
+                )}
+              </Card>
+            </div>
+          )}
+
           {pendingReview && (
             <Card className="border-gold-200 p-6">
               <div className="mb-3 flex items-center gap-2 text-gold-700">
@@ -379,7 +425,7 @@ export default function Consultation() {
             </Card>
           )}
 
-          {isThinking && (
+          {isThinking && !streamingTurn && (
             <Card className="flex items-center gap-2 p-6 text-sm text-navy-500">
               <span className="h-2 w-2 animate-pulse rounded-full bg-gold-500" />
               {attachments.length > 0 || pendingReview
