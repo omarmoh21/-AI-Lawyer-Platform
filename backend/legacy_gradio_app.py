@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import tempfile
 import uuid
@@ -65,10 +64,8 @@ async def respond(
     if paths:
         thread_config = {"configurable": {"thread_id": str(uuid.uuid4())}}
         try:
-            result = await asyncio.to_thread(
-                ocr_graph.invoke,
-                {"file_paths": paths, "user_message": text},
-                thread_config,
+            result = await ocr_graph.ainvoke(
+                {"file_paths": paths, "user_message": text}, thread_config,
             )
         except Exception as e:
             logger.error("OCR extraction failed: %s", e, exc_info=True)
@@ -130,8 +127,7 @@ async def on_approve(
         )
 
     try:
-        result = await asyncio.to_thread(
-            ocr_graph.invoke,
+        result = await ocr_graph.ainvoke(
             Command(resume={"action": "edit", "text": edited_text}),
             pending["config"],
         )
@@ -171,8 +167,7 @@ async def on_retry(feedback_text: str, pending: dict | None, chat_history: list)
         return chat_history, gr.update(), gr.update(), ""
 
     try:
-        result = await asyncio.to_thread(
-            ocr_graph.invoke,
+        result = await ocr_graph.ainvoke(
             Command(resume={"action": "retry", "feedback": feedback_text}),
             pending["config"],
         )
@@ -196,7 +191,7 @@ async def do_transcribe(audio_path: str | None) -> str:
     if not audio_path:
         return "لم يتم رفع أي تسجيل."
     try:
-        return await asyncio.to_thread(transcribe, audio_path)
+        return await transcribe(audio_path)
     except Exception as e:
         logger.error("ASR failed: %s", e, exc_info=True)
         return f"⚠️ فشل التفريغ: {e}"

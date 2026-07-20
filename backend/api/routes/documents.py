@@ -72,7 +72,7 @@ async def extract_documents(
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
     try:
-        result = ocr_graph.invoke(
+        result = await ocr_graph.ainvoke(
             {"file_paths": paths, "user_message": message}, config=config
         )
     except ValueError as e:
@@ -90,7 +90,7 @@ class ReviewRequest(BaseModel):
 
 
 @router.post("/documents/review")
-def review_documents(req: ReviewRequest):
+async def review_documents(req: ReviewRequest):
     if req.action not in ("approve", "edit", "retry"):
         raise HTTPException(400, f"Unknown action {req.action!r}.")
 
@@ -102,7 +102,7 @@ def review_documents(req: ReviewRequest):
 
     config = {"configurable": {"thread_id": req.thread_id}}
     try:
-        result = ocr_graph.invoke(Command(resume=decision), config=config)
+        result = await ocr_graph.ainvoke(Command(resume=decision), config=config)
     except ValueError as e:
         raise HTTPException(400, str(e))
 

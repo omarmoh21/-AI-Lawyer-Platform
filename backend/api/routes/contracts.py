@@ -7,6 +7,7 @@ contract text the user previewed and returns it as a downloadable PDF, so
 the download always matches exactly what was shown on screen.
 """
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -70,12 +71,12 @@ class ContractDownloadRequest(BaseModel):
 
 
 @router.post("/contracts/download")
-def download_contract(
+async def download_contract(
     req: ContractDownloadRequest,
     current_user: User = Depends(get_current_user),
 ):
     try:
-        pdf_bytes = generate_pdf(req.text, req.title)
+        pdf_bytes = await asyncio.to_thread(generate_pdf, req.text, req.title)
     except Exception:
         logger.exception("PDF generation failed for user %s", current_user.id)
         raise HTTPException(500, "تعذّر إنشاء ملف PDF.")

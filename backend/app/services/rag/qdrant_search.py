@@ -1,19 +1,25 @@
+import asyncio
+
 from qdrant_client import models
 
-from app.core.models import qdrant_client, dense_model, bm25_model
+from app.core.models import async_qdrant_client, dense_model, bm25_model
 from app.config.settings import COLLECTION_NAME, ARTICLES_COLLECTION, TOP_K, RERANK_TOP_K
 
 
-def hybrid_search(query: str) -> list[dict]:
+async def hybrid_search(query: str) -> list[dict]:
     """Hybrid dense + BM25 search with RRF fusion over the law collection."""
-    dense_vector  = dense_model.encode(query, normalize_embeddings=True).tolist()
-    sparse_vector = list(bm25_model.embed([query]))[0]
+    # Embedding is CPU-bound with no async API — run it off the event loop
+    # rather than blocking it while a (possibly GPU-bound) model runs.
+    dense_vector  = await asyncio.to_thread(
+        lambda: dense_model.encode(query, normalize_embeddings=True).tolist()
+    )
+    sparse_vector = await asyncio.to_thread(lambda: list(bm25_model.embed([query]))[0])
 
     active_filter = models.Filter(
         must=[models.FieldCondition(key="cancelled", match=models.MatchValue(value=False))]
     )
 
-    results = qdrant_client.query_points(
+    response = await async_qdrant_client.query_points(
         collection_name=COLLECTION_NAME,
         prefetch=[
             models.Prefetch(
@@ -31,7 +37,8 @@ def hybrid_search(query: str) -> list[dict]:
         ],
         query=models.FusionQuery(fusion=models.Fusion.RRF),
         limit=RERANK_TOP_K,
-    ).points
+    )
+    results = response.points
 
     return [
         {
@@ -45,10 +52,10 @@ def hybrid_search(query: str) -> list[dict]:
     ]
 
 
-def article_search(law_name: str, article_number: int) -> dict | None:
+async def article_search(law_name: str, article_number: int) -> dict | None:
     """Fetch a specific article by law name and article number."""
-    sparse = list(bm25_model.embed([law_name]))[0]
-    results = qdrant_client.query_points(
+    sparse = await asyncio.to_thread(lambda: list(bm25_model.embed([law_name]))[0])
+    response = await async_qdrant_client.query_points(
         collection_name=ARTICLES_COLLECTION,
         using="bm25",
         query=models.SparseVector(
@@ -61,6 +68,7 @@ def article_search(law_name: str, article_number: int) -> dict | None:
             )]
         ),
         limit=3,
-    ).points
+    )
+    results = response.points
 
     return results[0].payload if results else None

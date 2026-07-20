@@ -10,7 +10,7 @@ import re
 import json
 import time
 import logging
-import requests
+import httpx
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ def list_categories() -> dict[str, int]:
     return CATEGORIES
 
 
-def list_contracts(category: str) -> list[dict]:
+async def list_contracts(category: str) -> list[dict]:
     """List contract titles + post IDs available in a given category keyword."""
     category = category.strip()
     cat_id = CATEGORIES.get(category)
@@ -96,7 +96,8 @@ def list_contracts(category: str) -> list[dict]:
         return cached
 
     logger.info("lawhub: listing category %s (id=%d)", category, cat_id)
-    resp = requests.get(BASE_URL, params={"cat": cat_id}, headers=HEADERS, timeout=TIMEOUT)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        resp = await client.get(BASE_URL, params={"cat": cat_id}, headers=HEADERS)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -117,7 +118,7 @@ def list_contracts(category: str) -> list[dict]:
     return results
 
 
-def search_contracts(query: str) -> list[dict]:
+async def search_contracts(query: str) -> list[dict]:
     """
     Search lawhub.info's own search engine for a contract by free-text query.
     More reliable than category-guessing — a query like 'صيانة كمبيوتر' finds
@@ -133,7 +134,8 @@ def search_contracts(query: str) -> list[dict]:
         return cached
 
     logger.info("lawhub: searching for %r", query)
-    resp = requests.get(BASE_URL, params={"s": query}, headers=HEADERS, timeout=TIMEOUT)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        resp = await client.get(BASE_URL, params={"s": query}, headers=HEADERS)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -154,7 +156,7 @@ def search_contracts(query: str) -> list[dict]:
     return results
 
 
-def fetch_contract_text(post_id: str) -> str:
+async def fetch_contract_text(post_id: str) -> str:
     """Fetch and return the full contract text for a given lawhub post ID."""
     cache_key = f"post_{post_id}"
     cached = _cache_get(cache_key, max_age_seconds=30 * 24 * 3600)
@@ -163,7 +165,8 @@ def fetch_contract_text(post_id: str) -> str:
 
     url = f"{BASE_URL}?p={post_id}"
     logger.info("lawhub: fetching post %s", post_id)
-    resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        resp = await client.get(url, headers=HEADERS)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 

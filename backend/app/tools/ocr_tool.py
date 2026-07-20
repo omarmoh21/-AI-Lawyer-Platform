@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 @tool
-def ocr_tool(
+async def ocr_tool(
     image_paths: Annotated[list[str], "قائمة مسارات الصور"],
     user_message: Annotated[str, "رسالة أو توجيه إضافي من المستخدم"] = "",
 ) -> str:
@@ -23,7 +23,7 @@ def ocr_tool(
     results = []
     for i, path in enumerate(image_paths, 1):
         try:
-            text = extract_text(path, user_message)
+            text = await extract_text(path, user_message)
             results.append(f"[نتيجة الصورة {i}]\n{text}")
         except Exception as e:
             logger.error("OCR tool failed image %d: %s", i, e, exc_info=True)

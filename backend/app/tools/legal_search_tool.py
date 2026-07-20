@@ -4,9 +4,9 @@ from app.services.rag.qdrant_search import hybrid_search
 
 
 @tool
-def legal_search(query: str) -> str:
+async def legal_search(query: str) -> str:
     """ابحث في قاعدة بيانات القوانين المصرية عن المواد والتشريعات المتعلقة بالسؤال."""
-    results = hybrid_search(query)
+    results = await hybrid_search(query)
     if not results:
         return "لم يتم العثور على نتائج ذات صلة في قاعدة البيانات."
 

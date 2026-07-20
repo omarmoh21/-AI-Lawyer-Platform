@@ -1,6 +1,6 @@
 import os
 import logging
-import requests
+import httpx
 
 from app.config.settings import ELEVENLABS_API_KEY, STT_MODEL_ID
 
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 _URL = "https://api.elevenlabs.io/v1/speech-to-text"
 
 
-def transcribe(audio_path: str) -> str:
+async def transcribe(audio_path: str) -> str:
     """Send an audio file to ElevenLabs Scribe and return the transcript."""
     if not ELEVENLABS_API_KEY:
         raise ValueError("ELEVENLABS_API_KEY not set in .env")
@@ -18,12 +18,14 @@ def transcribe(audio_path: str) -> str:
     logger.info("ASR start — %s", audio_path)
 
     with open(audio_path, "rb") as f:
-        resp = requests.post(
+        content = f.read()
+
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(
             _URL,
             headers={"xi-api-key": ELEVENLABS_API_KEY},
             data={"model_id": STT_MODEL_ID},
-            files={"file": (os.path.basename(audio_path), f, mime)},
-            timeout=120,
+            files={"file": (os.path.basename(audio_path), content, mime)},
         )
 
     resp.raise_for_status()

@@ -56,7 +56,7 @@ async def transcribe_audio(
     try:
         tmp.write(await audio.read())
         tmp.close()
-        text = transcribe(tmp.name)
+        text = await transcribe(tmp.name)
     except ValueError as e:
         # e.g. missing API key
         raise HTTPException(500, str(e))

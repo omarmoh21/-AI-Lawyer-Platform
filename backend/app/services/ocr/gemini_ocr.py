@@ -1,4 +1,4 @@
-import time
+import asyncio
 import logging
 from PIL import Image
 from google import genai
@@ -59,14 +59,14 @@ def _build_prompt(n: int, user_message: str = "", feedback: str = "") -> str:
     return prompt
 
 
-def _generate(parts: list, prompt: str) -> str:
+async def _generate(parts: list, prompt: str) -> str:
     """Call Gemini with the given content parts, retrying up to 3 times on
     503 overload errors."""
     client = genai.Client(api_key=GEMINI_API_KEY)
 
     for attempt in range(3):
         try:
-            response = client.models.generate_content(
+            response = await client.aio.models.generate_content(
                 model=GEMINI_MODEL,
                 contents=[prompt, *parts],
             )
@@ -75,22 +75,22 @@ def _generate(parts: list, prompt: str) -> str:
             if attempt < 2 and "503" in str(e):
                 wait = 5 * (attempt + 1)
                 logger.warning("Gemini 503 — retry %d/3 in %ds", attempt + 1, wait)
-                time.sleep(wait)
+                await asyncio.sleep(wait)
             else:
                 raise
 
 
-def extract_text(image_path: str, user_message: str = "") -> str:
+async def extract_text(image_path: str, user_message: str = "") -> str:
     """Extract text from a single legal-document image using Gemini OCR.
 
     Retries up to 3 times on 503 overload errors.
     """
     image = Image.open(image_path)
     prompt = _build_prompt(1, user_message)
-    return _generate([image], prompt)
+    return await _generate([image], prompt)
 
 
-def extract_batch(
+async def extract_batch(
     parts: list, user_message: str = "", feedback: str = ""
 ) -> list[str]:
     """Extract text from multiple items (PIL Images and/or genai PDF-page
@@ -100,7 +100,7 @@ def extract_batch(
     """
     n = len(parts)
     prompt = _build_prompt(n, user_message, feedback)
-    text = _generate(parts, prompt)
+    text = await _generate(parts, prompt)
 
     if n == 1:
         return [text]

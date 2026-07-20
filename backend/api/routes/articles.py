@@ -41,13 +41,13 @@ class SearchHistoryOut(BaseModel):
 
 
 @router.get("/articles", response_model=ArticleOut)
-def get_article(
+async def get_article(
     law_name: str = Query(..., min_length=2, description="اسم القانون، مثال: قانون العقوبات"),
     article_number: int = Query(..., ge=1, description="رقم المادة"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    result = article_search(law_name, article_number)
+    result = await article_search(law_name, article_number)
 
     history_row = SearchHistory(
         user_id=current_user.id,

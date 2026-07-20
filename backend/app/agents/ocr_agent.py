@@ -23,6 +23,7 @@ Run directly for a CLI demo:
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import uuid
 from pathlib import Path
@@ -133,7 +134,7 @@ def _ocr_part_for_unit(unit: PageUnit) -> Image.Image | genai_types.Part:
     return genai_types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")
 
 
-def _run_ocr(units: list[PageUnit], user_message: str, feedback: str) -> None:
+async def _run_ocr(units: list[PageUnit], user_message: str, feedback: str) -> None:
     """Fill in `text` (in place) for every unit that needs OCR, via one batched
     Gemini call through the shared gemini_ocr service."""
     ocr_indices = [i for i, u in enumerate(units) if u["text"] is None]
@@ -141,13 +142,13 @@ def _run_ocr(units: list[PageUnit], user_message: str, feedback: str) -> None:
         return
 
     parts = [_ocr_part_for_unit(units[i]) for i in ocr_indices]
-    texts = extract_batch(parts, user_message=user_message, feedback=feedback)
+    texts = await extract_batch(parts, user_message=user_message, feedback=feedback)
 
     for i, chunk in zip(ocr_indices, texts):
         units[i]["text"] = chunk
 
 
-def extract_text_node(state: OcrState) -> dict:
+async def extract_text_node(state: OcrState) -> dict:
     """Extract text from all uploaded files, using direct extraction for PDF
     pages that already have a text layer and batched OCR for everything else."""
     feedback = state.get("feedback", "")
@@ -156,7 +157,7 @@ def extract_text_node(state: OcrState) -> dict:
 
     ocr_needed_count = sum(1 for u in units if u["text"] is None)
     if ocr_needed_count:
-        _run_ocr(units, user_message, feedback)
+        await _run_ocr(units, user_message, feedback)
 
     extracted_text = "\n\n".join(u["text"] or "" for u in units)
 
@@ -244,20 +245,20 @@ def _prompt_human(extracted_text: str, extraction_method: str) -> dict:
     return {"action": "retry", "feedback": ""}
 
 
-def run_ocr_with_human_review(file_paths: list[str], user_message: str = "") -> str:
+async def run_ocr_with_human_review(file_paths: list[str], user_message: str = "") -> str:
     """Run the OCR graph end-to-end, prompting the terminal user at the human-in-the-loop step."""
     config = {"configurable": {"thread_id": str(uuid.uuid4())}}
 
-    result = ocr_graph.invoke(
+    result = await ocr_graph.ainvoke(
         {"file_paths": file_paths, "user_message": user_message}, config=config
     )
 
     while "__interrupt__" in result:
         payload = result["__interrupt__"][0].value
-        decision = _prompt_human(
-            payload["extracted_text"], payload["extraction_method"]
+        decision = await asyncio.to_thread(
+            _prompt_human, payload["extracted_text"], payload["extraction_method"]
         )
-        result = ocr_graph.invoke(Command(resume=decision), config=config)
+        result = await ocr_graph.ainvoke(Command(resume=decision), config=config)
 
     return result["final_text"]
 
@@ -269,6 +270,6 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
-    final_text = run_ocr_with_human_review(sys.argv[1:])
+    final_text = asyncio.run(run_ocr_with_human_review(sys.argv[1:]))
     print("\n=== Final verified text ===")
     print(final_text)

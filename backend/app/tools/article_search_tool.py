@@ -4,12 +4,12 @@ from app.services.rag.qdrant_search import article_search
 
 
 @tool
-def article_search_tool(law_name: str, article_number: int) -> str:
+async def article_search_tool(law_name: str, article_number: int) -> str:
     """
     ابحث عن مادة قانونية بعينها برقمها واسم القانون.
     استخدم هذه الأداة فقط عندما يذكر المستخدم رقم مادة محدد واسم القانون.
     """
-    result = article_search(law_name, article_number)
+    result = await article_search(law_name, article_number)
     if not result:
         return "لم يتم العثور على هذه المادة في قاعدة البيانات."
     return (
