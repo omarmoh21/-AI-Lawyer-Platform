@@ -3,6 +3,7 @@ uvicorn[standard]
 websockets
 python-multipart
 sqlalchemy
+alembic
 bcrypt
 python-jose[cryptography]
 email-validator

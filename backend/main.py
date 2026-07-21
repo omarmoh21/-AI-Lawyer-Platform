@@ -12,8 +12,6 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from api.routes import articles, auth, chat, contracts, documents, health, transcribe
 from app.core.limiter import limiter
-from app.db.database import Base, engine
-from app.db import models  # noqa: F401 — ensures models are registered before create_all
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,8 +31,6 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     *_EXTRA_ORIGINS,
 ]
-
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI Lawyer API")
 

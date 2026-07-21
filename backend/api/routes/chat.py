@@ -209,7 +209,5 @@ def delete_session(
         # Same 404 for "not found" and "not owned" — don't leak existence.
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Chat session not found")
 
-    # No DB-level cascade on chat_messages, so delete the messages first.
-    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
     db.delete(session)
     db.commit()
