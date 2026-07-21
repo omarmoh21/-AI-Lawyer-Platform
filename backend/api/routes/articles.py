@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import SearchHistory, User
-from app.services.rag.qdrant_search import article_search
+from app.services.rag.qdrant_search import article_search, hybrid_search
 
 router = APIRouter(tags=["articles"])
 logger = logging.getLogger(__name__)
@@ -26,6 +26,14 @@ class ArticleOut(BaseModel):
     article_number: int
     text: str
     history_id: int
+
+
+class TopicSearchResult(BaseModel):
+    law_name: str
+    article_id: str | None
+    category: str | None
+    text: str
+    score: float
 
 
 class SearchHistoryOut(BaseModel):
@@ -73,6 +81,19 @@ async def get_article(
         text=result.get("text"),
         history_id=history_row.id,
     )
+
+
+@router.get("/articles/search", response_model=list[TopicSearchResult])
+async def search_articles_by_topic(
+    q: str = Query(
+        ..., min_length=3, description="وصف الموضوع بلغة عادية، مثال: عقوبة السرقة"
+    ),
+    current_user: User = Depends(get_current_user),
+):
+    """Find likely-relevant articles from a plain-language description, for
+    users who don't know the law name or article number up front."""
+    results = await hybrid_search(q)
+    return [TopicSearchResult(**r) for r in results]
 
 
 @router.get("/articles/history", response_model=list[SearchHistoryOut])

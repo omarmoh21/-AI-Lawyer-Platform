@@ -30,6 +30,22 @@ export async function lookupArticle(
   return handleResponse<ArticleResponse>(response)
 }
 
+export interface TopicSearchResult {
+  law_name: string
+  article_id: string | null
+  category: string | null
+  text: string
+  score: number
+}
+
+export async function searchArticlesByTopic(query: string): Promise<TopicSearchResult[]> {
+  const params = new URLSearchParams({ q: query })
+  const response = await fetch(`${API_BASE_URL}/articles/search?${params.toString()}`, {
+    credentials: 'include',
+  })
+  return handleResponse<TopicSearchResult[]>(response)
+}
+
 export interface SearchHistoryItem {
   id: number
   law_name: string
