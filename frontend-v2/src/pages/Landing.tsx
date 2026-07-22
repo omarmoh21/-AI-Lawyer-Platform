@@ -1,15 +1,10 @@
 import { Link } from 'react-router-dom'
-import {
-  ArrowLeft,
-  BookText,
-  FilePenLine,
-  MessagesSquare,
-  Scale,
-} from 'lucide-react'
+import { ArrowLeft, BookText, FilePenLine, MessagesSquare } from 'lucide-react'
 import Illumination from '../components/ui/Illumination'
 import Reveal from '../components/ui/Reveal'
 import DemoLeaf from '../components/landing/DemoLeaf'
 import QuoteLeaf from '../components/landing/QuoteLeaf'
+import PublicNav from '../components/layout/PublicNav'
 
 const steps = [
   { n: '١', title: 'اطرح مسألتك', body: 'اكتب سؤالك أو أملِهِ صوتًا بالعامية أو الفصحى، وأرفِق مستندًا إن شئت.' },
@@ -22,35 +17,6 @@ const chapters = [
   { icon: BookText, ord: '٢', to: '/search', title: 'مواد القانون', body: 'عرض النص الحرفي لأي مادة باسم القانون ورقمها، أو البحث بموضوعك.' },
   { icon: FilePenLine, ord: '٣', to: '/contracts', title: 'تحرير عقد', body: 'صياغة العقود الشائعة بنماذج موثّقة قابلة للتنزيل.' },
 ]
-
-function PublicNav() {
-  return (
-    <header className="sticky top-0 z-30 border-b border-field-edge/60 bg-field/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link to="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 rotate-45 items-center justify-center border border-gold-400 bg-paper/10">
-            <Scale size={16} className="-rotate-45 text-gold-300" />
-          </span>
-          <span className="font-naskh text-xl font-bold text-paper">المستشار</span>
-        </Link>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/login"
-            className="rounded-[4px] px-4 py-2 text-sm font-semibold text-paper/85 transition-colors hover:bg-paper/10 hover:text-paper"
-          >
-            تسجيل الدخول
-          </Link>
-          <Link
-            to="/signup"
-            className="rounded-[4px] bg-gold-400 px-4 py-2 text-sm font-semibold text-field-deep transition-colors hover:bg-gold-300"
-          >
-            إنشاء حساب
-          </Link>
-        </div>
-      </div>
-    </header>
-  )
-}
 
 export default function Landing() {
   return (
@@ -96,7 +62,7 @@ export default function Landing() {
       </section>
 
       {/* How it works — the 3-step sequence + live demo */}
-      <section className="border-y border-field-edge/50 bg-field-deep/40">
+      <section id="how-it-works" className="scroll-mt-24 border-y border-field-edge/50 bg-field-deep/40">
         <div className="mx-auto max-w-6xl px-6 py-16">
           <Reveal>
             <h2 className="font-naskh text-2xl font-bold text-paper">كيف تسير الاستشارة</h2>
@@ -133,7 +99,7 @@ export default function Landing() {
       </section>
 
       {/* Capabilities — each service as an illuminated chapter (باب) */}
-      <section className="mx-auto max-w-6xl px-6 py-16">
+      <section id="chapters" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-16">
         <Reveal>
           <h2 className="font-naskh text-2xl font-bold text-paper">أبواب المنصّة</h2>
           <Illumination className="mt-4 max-w-xs" />

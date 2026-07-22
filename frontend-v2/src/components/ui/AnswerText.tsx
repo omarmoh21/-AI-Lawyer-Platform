@@ -41,21 +41,67 @@ function classify(heading: string): Zone {
   return 'body'
 }
 
+// A line counts as a section header only when the **entire** line (after
+// trimming, and an optional trailing colon) is the bold span — e.g.
+// "**الشرح والتطبيق**". A numbered/bulleted list item that merely *starts*
+// with a bold sub-label, like "1. **العقوبة المقررة:** نص هنا...", must NOT
+// split here — that bold text is inline emphasis inside one list item, not a
+// new top-level section. Splitting on it would shred a single numbered list
+// into many fake sections, scattering its items across different zones with
+// inconsistent styling (the bug this line-based check fixes).
+const HEADING_LINE = /^\s*\*\*(.+?)\*\*:?\s*$/
+
 function parseSections(md: string): Section[] {
-  // Split on **bold** headers; odd indices are the heading captures.
-  const parts = md.split(/\*\*(.+?)\*\*/g)
+  const lines = md.split(/\r?\n/)
   const sections: Section[] = []
-  const preamble = parts[0]?.trim()
-  if (preamble) sections.push({ zone: 'body', heading: '', body: preamble })
-  for (let i = 1; i < parts.length; i += 2) {
-    const heading = (parts[i] ?? '').trim()
-    const body = (parts[i + 1] ?? '').trim()
-    if (heading || body) sections.push({ zone: classify(heading), heading, body })
+  let heading = ''
+  let body: string[] = []
+
+  const flush = () => {
+    const text = body.join('\n').trim()
+    if (heading || text) sections.push({ zone: classify(heading), heading, body: text })
+    body = []
   }
+
+  for (const line of lines) {
+    const match = line.match(HEADING_LINE)
+    if (match) {
+      flush()
+      heading = match[1].trim().replace(/:$/, '')
+    } else {
+      body.push(line)
+    }
+  }
+  flush()
+
   return sections
 }
 
 // ── Markdown body renderers ────────────────────────────────────
+
+// react-markdown renders bare <table>/<th>/<td> with no color of their own,
+// so they'd otherwise inherit the page's default body color (the ivory tone
+// meant for the dark field) — invisible on these light paper leaves. Every
+// renderer below spreads this in so any answer with a table stays legible.
+const tableComponents = {
+  table: ({ children }: { children?: ReactNode }) => (
+    <div className="my-3 overflow-x-auto rounded-[4px] border border-paper-edge">
+      <table className="w-full border-collapse text-start">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: { children?: ReactNode }) => (
+    <thead className="bg-paper-deep/70">{children}</thead>
+  ),
+  tr: ({ children }: { children?: ReactNode }) => (
+    <tr className="border-b border-paper-edge last:border-0">{children}</tr>
+  ),
+  th: ({ children }: { children?: ReactNode }) => (
+    <th className="p-2.5 text-start font-naskh text-sm font-bold text-ink">{children}</th>
+  ),
+  td: ({ children }: { children?: ReactNode }) => (
+    <td className="p-2.5 align-top font-naskh text-sm text-ink">{children}</td>
+  ),
+}
 
 function MainMarkdown({ text }: { text: string }) {
   return (
@@ -80,22 +126,13 @@ function MainMarkdown({ text }: { text: string }) {
             {children}
           </blockquote>
         ),
-      }}
-    >
-      {text}
-    </ReactMarkdown>
-  )
-}
-
-function MarginMarkdown({ text }: { text: string }) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkBreaks]}
-      components={{
-        p: ({ children }) => <p className="mb-2 last:mb-0 leading-[1.9]">{children}</p>,
-        strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
-        ul: ({ children }) => <ul className="mb-2 me-4 list-disc space-y-1">{children}</ul>,
-        ol: ({ children }) => <ol className="mb-2 me-4 list-decimal space-y-1">{children}</ol>,
+        ul: ({ children }) => (
+          <ul className="mb-2 me-5 list-disc space-y-1 font-naskh text-[17px] leading-[2] text-ink">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="mb-2 me-5 list-decimal space-y-1 font-naskh text-[17px] leading-[2] text-ink">{children}</ol>
+        ),
+        ...tableComponents,
       }}
     >
       {text}
@@ -116,7 +153,7 @@ function flatten(node: ReactNode): string {
 
 function FlowingAnswer({ text }: { text: string }) {
   return (
-    <div dir="rtl" className="text-[15px] leading-loose text-ink">
+    <div dir="rtl" className="font-naskh text-[15px] leading-loose text-ink">
       <ReactMarkdown
         remarkPlugins={[remarkBreaks]}
         components={{
@@ -141,6 +178,7 @@ function FlowingAnswer({ text }: { text: string }) {
           },
           ul: ({ children }) => <ul className="mb-3 me-4 list-disc space-y-1">{children}</ul>,
           ol: ({ children }) => <ol className="mb-3 me-4 list-decimal space-y-1">{children}</ol>,
+          ...tableComponents,
         }}
       >
         {text}
@@ -151,87 +189,26 @@ function FlowingAnswer({ text }: { text: string }) {
 
 // ── The manuscript layout ──────────────────────────────────────
 
+// Every section — الإجابة المختصرة, السند القانوني, الشرح والتطبيق, الخلاصة —
+// renders through one identical treatment (rubric heading mark + green Naskh
+// title + the same body renderer), in document order. No section gets a
+// distinct "marginalia" look, so the whole answer reads as one uniform piece.
 function ManuscriptAnswer({ sections }: { sections: Section[] }) {
-  const summary = sections.find((s) => s.zone === 'summary')
-  const mains = sections.filter((s) => s.zone === 'main' || s.zone === 'body')
-  const margins = sections.filter((s) => s.zone === 'margin')
-  const closing = sections.find((s) => s.zone === 'closing')
-
   return (
-    <div dir="rtl" className="animate-rise">
-      {/* Opening rubric (سرلوح) */}
-      {summary && (
-        <div className="mb-6">
-          <div className="mb-2 flex items-center gap-2">
-            <span aria-hidden className="text-rubric-600">
-              ❧
-            </span>
-            <span className="font-naskh text-sm font-bold tracking-wide text-green-700">
-              الإجابة المختصرة
-            </span>
-          </div>
-          <p className="font-naskh text-xl leading-[2.1] text-ink">{summary.body}</p>
-          <span className="animate-draw mt-4 block h-px origin-right bg-gradient-to-l from-gold-500/60 to-transparent" />
-        </div>
-      )}
-
-      <div className="lg:grid lg:grid-cols-[1fr_15rem] lg:gap-7">
-        {/* المتن — main text */}
-        <div className="min-w-0">
-          {mains.map((section, i) => (
-            <section key={i} className="mb-5 last:mb-0">
-              {section.heading && (
-                <h4 className="mb-2 flex items-center gap-2 font-naskh text-sm font-bold text-green-700">
-                  <span aria-hidden className="text-rubric-600">
-                    ۞
-                  </span>
-                  {section.heading}
-                </h4>
-              )}
-              <MainMarkdown text={section.body} />
-            </section>
-          ))}
-        </div>
-
-        {/* الحاشية — marginalia */}
-        {margins.length > 0 && (
-          <aside className="mt-7 border-t border-paper-edge pt-5 lg:mt-0 lg:border-t-0 lg:border-s lg:border-paper-edge lg:pt-0 lg:ps-6">
-            <div className="mb-3 flex items-center gap-2">
+    <div dir="rtl" className="animate-rise text-ink">
+      {sections.map((section, i) => (
+        <section key={i} className="mb-6 last:mb-0">
+          {section.heading && (
+            <h4 className="mb-2.5 flex items-center gap-2 font-naskh text-base font-bold text-green-700">
               <span aria-hidden className="text-rubric-600">
-                ۞
+                ❧
               </span>
-              <span className="font-naskh text-xs font-bold tracking-widest text-ink-soft">
-                حاشيةٌ وتطبيق
-              </span>
-            </div>
-            <div className="space-y-4 text-[13px] text-ink-soft">
-              {margins.map((section, i) => (
-                <div key={i} className="animate-rise" style={{ animationDelay: `${120 + i * 90}ms` }}>
-                  {section.heading && (
-                    <p className="mb-1 font-naskh text-sm font-bold text-ink">{section.heading}</p>
-                  )}
-                  <MarginMarkdown text={section.body} />
-                </div>
-              ))}
-            </div>
-          </aside>
-        )}
-      </div>
-
-      {/* Closing note */}
-      {closing && (
-        <div className="mt-6 border-t border-paper-edge pt-4">
-          <div className="mb-1 flex items-center gap-2">
-            <span aria-hidden className="text-rubric-600">
-              ❧
-            </span>
-            <span className="font-naskh text-sm font-bold text-green-700">الخلاصة</span>
-          </div>
-          <div className="text-sm leading-relaxed text-ink-soft">
-            <MarginMarkdown text={closing.body} />
-          </div>
-        </div>
-      )}
+              {section.heading}
+            </h4>
+          )}
+          <MainMarkdown text={section.body} />
+        </section>
+      ))}
     </div>
   )
 }
