@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+/*
+  Egyptian legal identity — the lawyer's robe (black) with the green collar
+  (أخضر المحاماة) and the gold of justice (الميزان / النسر), on parchment.
+  Amiri (Naskh) for display + verbatim law; IBM Plex Sans Arabic for UI.
+  Accents: deep legal green (primary), gold (officialdom), rubric (used sparingly).
+*/
+@theme {
+  --font-sans: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-naskh: "Amiri", "IBM Plex Sans Arabic", serif;
+
+  /* parchment */
+  --color-paper: #f6f2e9;
+  --color-paper-deep: #ece5d6;
+  --color-paper-edge: #ddd4bf;
+
+  /* ink — the black robe */
+  --color-ink: #1a1c19;
+  --color-ink-soft: #5d6158;
+  --color-ink-faint: #948f81;
+
+  /* primary accent — gold. Bright shades glow on the dark field; the deep
+     600/700 stay legible as text on the light manuscript leaves. */
+  --color-green-50: #f6efda;
+  --color-green-100: #ecdcb0;
+  --color-green-300: #d4b45e;
+  --color-green-500: #b08a30;
+  --color-green-600: #7a5610;
+  --color-green-700: #543d0d;
+
+  --color-rubric-500: #b5453a;
+  --color-rubric-600: #a63a2b;
+  --color-rubric-700: #862d20;
+
+  /* gold of officialdom — the scales and the eagle; leaf-gold for illumination */
+  --color-gold-300: #d8b45a;
+  --color-gold-400: #c19a41;
+  --color-gold-500: #a5842f;
+  --color-gold-600: #856a26;
+
+  /* charcoal field — the black robe; light leaves and gold rest on it */
+  --color-field: #201d17;
+  --color-field-deep: #16130d;
+  --color-field-edge: #3b352b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-field);
+  color: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+  The charcoal "field" (the black robe) — a warm near-black with a gold
+  light-source glow, a soft vignette, and faint ruled lines, so the dark
+  reads like leather catching light rather than a flat black box.
+*/
+.field-bg {
+  background-color: var(--color-field);
+  background-image:
+    radial-gradient(circle at 85% -8%, rgba(216, 180, 90, 0.1), transparent 42%),
+    radial-gradient(circle at 5% 108%, rgba(0, 0, 0, 0.4), transparent 55%),
+    repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 33px,
+      rgba(246, 242, 233, 0.016) 33px,
+      rgba(246, 242, 233, 0.016) 34px
+    );
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Naskh utility for display + verbatim legal text */
+.font-naskh {
+  font-family: var(--font-naskh);
+}
+
+/* Ruled-margin (مسطرة) hairline used by the manuscript layout */
+.rule-line {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 1.85rem,
+    color-mix(in srgb, var(--color-ink-soft) 14%, transparent) 1.85rem,
+    color-mix(in srgb, var(--color-ink-soft) 14%, transparent) calc(1.85rem + 1px)
+  );
+}
+
+/* Restrained motion — a single soft "rise" as leaves settle onto the page */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* A hairline that draws itself in (illumination under headings) */
+@keyframes draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-draw {
+  transform-origin: right;
+  animation: draw 0.6s ease-out both;
+}
+
+/* Compose: a leaf element unrolling into place (used by the live demo) */
+@keyframes compose {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.animate-compose {
+  animation: compose 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Blinking reed-pen caret */
+@keyframes caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.caret::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-inline-start: 2px;
+  vertical-align: -0.15em;
+  background: var(--color-rubric-600);
+  animation: caret 1s step-end infinite;
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--color-green-600);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
