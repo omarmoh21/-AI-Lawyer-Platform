@@ -3,22 +3,28 @@ from typing import Annotated
 from langchain_core.tools import tool
 
 from app.services.scraping.lawhub_scraper import (
-    list_categories, list_contracts, search_contracts, fetch_contract_text,
+    list_categories,
+    list_contracts,
+    search_contracts,
+    fetch_contract_text,
 )
 
 logger = logging.getLogger(__name__)
 
 
 @tool
-def search_lawhub_contracts(
-    query: Annotated[str, "وصف العقد المطلوب بالعربية، مثال: صيانة كمبيوتر، عقد وكالة تجارية، اتفاقية شراكة"],
+async def search_lawhub_contracts(
+    query: Annotated[
+        str,
+        "وصف العقد المطلوب بالعربية، مثال: صيانة كمبيوتر، عقد وكالة تجارية، اتفاقية شراكة",
+    ],
 ) -> str:
     """
     ابحث عن عقد بعينه على الموسوعة القانونية (lawhub.info) باستخدام وصف حر.
     استخدم هذه الأداة أولاً دائماً عند الحاجة لعقد غير متوفر في القوالب المحلية الأربعة —
     هذا البحث أدق من تصفح الفئات لأنه يطابق العنوان الفعلي للعقد.
     """
-    results = search_contracts(query)
+    results = await search_contracts(query)
     if not results:
         return f"لم يتم العثور على عقد مطابق لـ '{query}'. جرّب list_lawhub_categories وsearch_lawhub_by_category."
 
@@ -36,14 +42,16 @@ def list_lawhub_categories() -> str:
 
 
 @tool
-def search_lawhub_by_category(
-    category: Annotated[str, "اسم فئة العقد بالعربية، مثال: بيع، ايجار، عمل، شركات، رهن، هبة، زواج، قرض"],
+async def search_lawhub_by_category(
+    category: Annotated[
+        str, "اسم فئة العقد بالعربية، مثال: بيع، ايجار، عمل، شركات، رهن، هبة، زواج، قرض"
+    ],
 ) -> str:
     """
     اعرض كل العقود المتاحة داخل فئة معينة من الموسوعة القانونية (lawhub.info).
     استخدم هذه الأداة فقط إذا فشل search_lawhub_contracts في إيجاد نتيجة مناسبة.
     """
-    results = list_contracts(category)
+    results = await list_contracts(category)
     if not results:
         return f"لم يتم العثور على فئة باسم '{category}'. استخدم list_lawhub_categories لمعرفة الفئات المتاحة."
 
@@ -54,15 +62,17 @@ def search_lawhub_by_category(
 
 
 @tool
-def fetch_lawhub_contract(
-    post_id: Annotated[str, "رقم المعرف (post_id) الذي ظهر في نتيجة search_lawhub_contracts"],
+async def fetch_lawhub_contract(
+    post_id: Annotated[
+        str, "رقم المعرف (post_id) الذي ظهر في نتيجة search_lawhub_contracts"
+    ],
 ) -> str:
     """
     اجلب النص الكامل لعقد معين من الموسوعة القانونية (lawhub.info) باستخدام رقمه المرجعي.
     استخدم preview/استخدم هذا النص لملء بيانات المستخدم وعرض العقد كاملاً في الرد.
     """
     try:
-        text = fetch_contract_text(post_id)
+        text = await fetch_contract_text(post_id)
         return text
     except Exception as e:
         logger.error("lawhub fetch failed for post %s: %s", post_id, e, exc_info=True)

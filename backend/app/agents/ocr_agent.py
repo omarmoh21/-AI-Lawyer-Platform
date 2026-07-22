@@ -39,6 +39,13 @@ from app.services.ocr.gemini_ocr import extract_batch
 
 SUPPORTED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
 
+# A scanned page can still carry a thin genuine text layer (a page-number
+# stamp, a watermark) even though its body is a raster image. A bare
+# truthiness check on the extracted text would treat that sliver as "already
+# has direct text" and skip OCR, silently dropping the real scanned content.
+# Require a minimum length before trusting a page as having a real text layer.
+MIN_DIRECT_TEXT_CHARS = 20
+
 EXTRACTION_METHOD_LABELS = {
     "direct": "direct text extraction (no OCR)",
     "ocr": "OCR model (Gemini)",
@@ -92,12 +99,13 @@ def _build_page_units(file_paths: list[str]) -> list[PageUnit]:
             try:
                 for i, page in enumerate(doc):
                     text = page.get_text("text").strip()
+                    has_real_text = len(text) >= MIN_DIRECT_TEXT_CHARS
                     units.append(
                         {
                             "kind": "pdf_page",
                             "file_path": file_path,
                             "page_index": i,
-                            "text": text or None,
+                            "text": text if has_real_text else None,
                         }
                     )
             finally:

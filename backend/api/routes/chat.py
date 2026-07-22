@@ -52,7 +52,9 @@ class MessageOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-def _get_or_create_session(db: Session, session_id: str | None, user_id: int) -> ChatSession:
+def _get_or_create_session(
+    db: Session, session_id: str | None, user_id: int
+) -> ChatSession:
     if session_id is not None:
         session = db.get(ChatSession, session_id)
         if session is None or session.user_id != user_id:
@@ -88,7 +90,9 @@ def _persist_new_turn(db: Session, session: ChatSession, new_messages: list) -> 
         db.add(ChatMessage(session_id=session.id, role=role, content=msg.content))
 
     if session.title is None:
-        first_human = next((m for m in new_messages if isinstance(m, HumanMessage)), None)
+        first_human = next(
+            (m for m in new_messages if isinstance(m, HumanMessage)), None
+        )
         if first_human:
             session.title = first_human.content[:80]
 
@@ -97,7 +101,7 @@ def _persist_new_turn(db: Session, session: ChatSession, new_messages: list) -> 
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(
+async def chat(
     req: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -106,14 +110,17 @@ def chat(
     history = _load_history(db, session.id)
     turn_start = len(history)
 
-    response, history, docx_path = supervisor.run(
+    response, history, docx_path = await supervisor.run(
         req.message, history, extracted_text=req.extracted_text
     )
 
     _persist_new_turn(db, session, history[turn_start:])
 
     logger.info(
-        "chat — user %s, session %s, %d turns", current_user.id, session.id, len(history) // 2
+        "chat — user %s, session %s, %d turns",
+        current_user.id,
+        session.id,
+        len(history) // 2,
     )
     return ChatResponse(session_id=session.id, response=response, docx_path=docx_path)
 

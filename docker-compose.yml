@@ -1,0 +1,12 @@
+services:
+  tei-embedder:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
+    container_name: tei-embedder
+    ports:
+      - "8080:80"
+    volumes:
+      - "${HF_CACHE_DIR:-C:/Users/Lenovo/.cache/huggingface}:/data"
+    command:
+      - "--model-id"
+      - "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2"
+    restart: unless-stopped

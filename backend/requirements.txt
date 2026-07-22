@@ -20,3 +20,4 @@ pymupdf
 python-docx
 python-dotenv
 requests
+cohere

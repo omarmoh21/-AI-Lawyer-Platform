@@ -10,6 +10,7 @@ Flow:
   3. The client then sends the final text to /chat as `extracted_text`.
 """
 
+import asyncio
 import logging
 import tempfile
 import uuid
@@ -72,8 +73,15 @@ async def extract_documents(
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
     try:
-        result = ocr_graph.invoke(
-            {"file_paths": paths, "user_message": message}, config=config
+        # ocr_graph.invoke() is a blocking call: it runs PyMuPDF page parsing
+        # (CPU-bound, no async equivalent exists) and, when needed, the
+        # Gemini OCR call (sync network client). Offload to a worker thread
+        # so this request's processing never blocks the event loop — and
+        # therefore never blocks every other user's requests — while it runs.
+        result = await asyncio.to_thread(
+            ocr_graph.invoke,
+            {"file_paths": paths, "user_message": message},
+            config=config,
         )
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -86,11 +94,11 @@ class ReviewRequest(BaseModel):
     thread_id: str
     action: str  # "approve" | "edit" | "retry"
     text: str | None = None  # for action == "edit"
-    feedback: str = ""       # for action == "retry"
+    feedback: str = ""  # for action == "retry"
 
 
 @router.post("/documents/review")
-def review_documents(req: ReviewRequest):
+async def review_documents(req: ReviewRequest):
     if req.action not in ("approve", "edit", "retry"):
         raise HTTPException(400, f"Unknown action {req.action!r}.")
 
@@ -102,7 +110,11 @@ def review_documents(req: ReviewRequest):
 
     config = {"configurable": {"thread_id": req.thread_id}}
     try:
-        result = ocr_graph.invoke(Command(resume=decision), config=config)
+        # "retry" re-enters the extract node (fitz + Gemini again), so this
+        # needs the same thread offload as /documents/extract above.
+        result = await asyncio.to_thread(
+            ocr_graph.invoke, Command(resume=decision), config=config
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
 
