@@ -13,7 +13,15 @@ import tempfile
 from pathlib import Path
 
 import websockets
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from pydantic import BaseModel
 
 from app.auth.dependencies import get_current_user
@@ -106,23 +114,27 @@ async def transcribe_stream(ws: WebSocket) -> None:
                         data = json.loads(await ws.receive_text())
                         if data.get("type") == "stop":
                             await upstream.send(
-                                json.dumps({
-                                    "message_type": "input_audio_chunk",
-                                    "audio_base_64": "",
-                                    "sample_rate": 16000,
-                                    "commit": True,
-                                })
+                                json.dumps(
+                                    {
+                                        "message_type": "input_audio_chunk",
+                                        "audio_base_64": "",
+                                        "sample_rate": 16000,
+                                        "commit": True,
+                                    }
+                                )
                             )
                             continue
                         audio = data.get("audio")
                         if audio:
                             await upstream.send(
-                                json.dumps({
-                                    "message_type": "input_audio_chunk",
-                                    "audio_base_64": audio,
-                                    "sample_rate": 16000,
-                                    "commit": False,
-                                })
+                                json.dumps(
+                                    {
+                                        "message_type": "input_audio_chunk",
+                                        "audio_base_64": audio,
+                                        "sample_rate": 16000,
+                                        "commit": False,
+                                    }
+                                )
                             )
                 except WebSocketDisconnect:
                     pass
@@ -132,12 +144,22 @@ async def transcribe_stream(ws: WebSocket) -> None:
                     msg = json.loads(raw)
                     mt = msg.get("message_type")
                     if mt == "partial_transcript":
-                        await ws.send_json({"type": "partial", "text": msg.get("text", "")})
-                    elif mt in ("committed_transcript", "committed_transcript_with_timestamps"):
-                        await ws.send_json({"type": "final", "text": msg.get("text", "")})
+                        await ws.send_json(
+                            {"type": "partial", "text": msg.get("text", "")}
+                        )
+                    elif mt in (
+                        "committed_transcript",
+                        "committed_transcript_with_timestamps",
+                    ):
+                        await ws.send_json(
+                            {"type": "final", "text": msg.get("text", "")}
+                        )
                     elif mt and mt.endswith("error"):
                         await ws.send_json(
-                            {"type": "error", "message": msg.get("error", "خطأ في التفريغ")}
+                            {
+                                "type": "error",
+                                "message": msg.get("error", "خطأ في التفريغ"),
+                            }
                         )
 
             t_up = asyncio.create_task(client_to_upstream())
@@ -150,7 +172,9 @@ async def transcribe_stream(ws: WebSocket) -> None:
     except Exception:
         logger.exception("realtime transcription proxy failed for user %s", user_id)
         try:
-            await ws.send_json({"type": "error", "message": "تعذّر الاتصال بخدمة التفريغ."})
+            await ws.send_json(
+                {"type": "error", "message": "تعذّر الاتصال بخدمة التفريغ."}
+            )
         except Exception:
             pass
     finally:

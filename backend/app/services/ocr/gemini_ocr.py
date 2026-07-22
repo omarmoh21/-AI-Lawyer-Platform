@@ -106,11 +106,21 @@ async def extract_batch(
         return [text]
 
     chunks = [chunk.strip() for chunk in text.split(PAGE_BREAK_DELIMITER)]
-    if len(chunks) != n:
-        logger.warning(
-            "Gemini returned %d chunk(s), expected %d — delimiter mismatch",
-            len(chunks),
-            n,
-        )
-        chunks = [text] + [""] * (n - 1)
-    return chunks
+    if len(chunks) == n:
+        return chunks
+
+    # The batch delimiter split didn't line up with the page count — e.g. the
+    # model merged two pages or dropped a delimiter. Silently keeping the raw
+    # response as "page 1" and blanking the rest would lose real content
+    # without any signal to the reviewer. Instead, fall back to one Gemini
+    # call per item: slower on this rare path, but guarantees every page's
+    # text is correctly extracted and attributed.
+    logger.warning(
+        "Gemini returned %d chunk(s), expected %d — delimiter mismatch, "
+        "falling back to per-item extraction",
+        len(chunks),
+        n,
+    )
+    return await asyncio.gather(
+        *(_generate([part], _build_prompt(1, user_message, feedback)) for part in parts)
+    )

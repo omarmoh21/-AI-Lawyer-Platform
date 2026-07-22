@@ -8,6 +8,7 @@ Routing logic:
 """
 
 import logging
+from contextvars import ContextVar
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.prebuilt import create_react_agent
 from langchain_core.tools import tool
@@ -22,7 +23,12 @@ logger = logging.getLogger(__name__)
 
 # Recent conversation turns, refreshed by run() before each supervisor call,
 # so sub-agents (which are otherwise stateless) can resolve follow-up questions.
-_recent_history: list = []
+#
+# A ContextVar (not a plain module-level list) so concurrent requests never
+# see each other's history: asyncio gives each request's coroutine chain its
+# own isolated context, so .set() here is invisible to any other in-flight
+# request, even though they all reference the same variable in code.
+_recent_history_var: ContextVar[list] = ContextVar("_recent_history", default=[])
 _HISTORY_WINDOW = 6
 
 
@@ -32,24 +38,26 @@ def _content_to_text(content) -> str:
         return content
     if isinstance(content, list):
         return "\n".join(
-            part if isinstance(part, str) else part.get("text", "")
-            for part in content
+            part if isinstance(part, str) else part.get("text", "") for part in content
         )
     return str(content)
 
 
 # ── Sub-agent wrappers as tools ────────────────────────────────
 
+
 @tool(return_direct=True)
 async def ask_legal_research(
-    query: Annotated[str, "السؤال القانوني المطلوب البحث عنه في قاعدة بيانات القوانين المصرية"],
+    query: Annotated[
+        str, "السؤال القانوني المطلوب البحث عنه في قاعدة بيانات القوانين المصرية"
+    ],
 ) -> str:
     """
     ابحث في قاعدة بيانات القوانين المصرية عن إجابة قانونية.
     استخدم هذه الأداة لأي سؤال يتعلق بالقانون أو العقوبات أو الحقوق.
     """
     result = await legal_research_agent.ainvoke(
-        {"messages": [*_recent_history, HumanMessage(content=query)]},
+        {"messages": [*_recent_history_var.get(), HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
     return _content_to_text(result["messages"][-1].content)
@@ -64,7 +72,7 @@ async def ask_document_agent(
     استخدم هذه الأداة عندما يرفع المستخدم صورة أو وثيقة.
     """
     result = await document_agent.ainvoke(
-        {"messages": [*_recent_history, HumanMessage(content=query)]},
+        {"messages": [*_recent_history_var.get(), HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
     return _content_to_text(result["messages"][-1].content)
@@ -79,7 +87,7 @@ async def ask_contract_agent(
     استخدم هذه الأداة لطلبات إنشاء عقود الإيجار أو العمل أو السرية أو البيع.
     """
     result = await contract_agent.ainvoke(
-        {"messages": [*_recent_history, HumanMessage(content=query)]},
+        {"messages": [*_recent_history_var.get(), HumanMessage(content=query)]},
         config={"recursion_limit": 50},
     )
 
@@ -87,7 +95,7 @@ async def ask_contract_agent(
     # Grab the actual tool output (local template or lawhub fetch) from the
     # message history and return it directly — guaranteed to be the full text.
     contract_text = None
-    source_note   = ""
+    source_note = ""
     for msg in result["messages"]:
         name = getattr(msg, "name", None)
         if name == "preview_contract":
@@ -95,7 +103,7 @@ async def ask_contract_agent(
             break
         if name == "fetch_lawhub_contract":
             contract_text = _content_to_text(msg.content)
-            source_note   = "\n\nالمصدر: الموسوعة القانونية (lawhub.info)"
+            source_note = "\n\nالمصدر: الموسوعة القانونية (lawhub.info)"
             break
 
     if contract_text:
@@ -222,10 +230,10 @@ async def astream(
 
     conv_history.append(HumanMessage(content=content))
 
-    # Refresh the shared history window for sub-agents (exclude the current
-    # message — the supervisor's rewritten query already carries it).
-    _recent_history.clear()
-    _recent_history.extend(conv_history[:-1][-_HISTORY_WINDOW:])
+    # Refresh this request's history window for sub-agents (exclude the
+    # current message — the supervisor's rewritten query already carries it).
+    # Isolated per-request via ContextVar — see the module docstring above.
+    _recent_history_var.set(conv_history[:-1][-_HISTORY_WINDOW:])
 
     # Text generated *inside* ask_contract_agent or ask_document_agent is
     # never the final answer shown to the user: contract text is swapped for

@@ -39,8 +39,8 @@ tmp_uploads/
 *.tmp
 *.temp
 
-# Runtime cache
-app/services/scraping/_cache/
+# Runtime cache (regenerable, created automatically at runtime)
+backend/app/services/scraping/_cache/
 
 # SQLite databases
 *.sqlite3
@@ -63,3 +63,4 @@ Thumbs.db
 # Distribution
 *.whl
 *.tar.gz
+.claude

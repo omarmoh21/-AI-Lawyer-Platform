@@ -50,7 +50,9 @@ class SearchHistoryOut(BaseModel):
 
 @router.get("/articles", response_model=ArticleOut)
 async def get_article(
-    law_name: str = Query(..., min_length=2, description="اسم القانون، مثال: قانون العقوبات"),
+    law_name: str = Query(
+        ..., min_length=2, description="اسم القانون، مثال: قانون العقوبات"
+    ),
     article_number: int = Query(..., ge=1, description="رقم المادة"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -71,7 +73,8 @@ async def get_article(
 
     if result is None:
         raise HTTPException(
-            404, f"لم يتم العثور على المادة {article_number} من {law_name} في قاعدة البيانات."
+            404,
+            f"لم يتم العثور على المادة {article_number} من {law_name} في قاعدة البيانات.",
         )
 
     return ArticleOut(

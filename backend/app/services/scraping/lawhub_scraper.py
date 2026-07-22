@@ -16,38 +16,40 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://lawhub.info/eg/"
-HEADERS  = {"User-Agent": "Mozilla/5.0 (compatible; LegalAssistantBot/1.0)"}
-TIMEOUT  = 15
+HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; LegalAssistantBot/1.0)"}
+TIMEOUT = 15
+
+_client = httpx.AsyncClient(headers=HEADERS, timeout=TIMEOUT)
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "_cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 # ── Contract categories (verified stable IDs on lawhub.info) ───
 CATEGORIES: dict[str, int] = {
-    "بيع":          947,   # sale
-    "ايجار":        946,   # rental
-    "شركات":        952,   # companies
-    "عمل":          955,   # employment
-    "مقاولة":       960,   # contracting
-    "وكالة":        963,   # agency
-    "رهن":          950,   # mortgage
-    "هبة":          961,   # gift
-    "قسمة":         957,   # division
-    "مقايضة":       965,   # barter
-    "وديعة":        962,   # deposit
-    "قرض":          956,   # loan
-    "عارية":        954,   # loan for use
-    "صلح":          953,   # settlement
-    "زواج":         951,   # marriage
-    "تفاسخ":        969,
-    "حراسة":        948,   # custody/guard
-    "دخل دائم":     949,   # perpetual income
-    "انتفاع":       972,   # usufruct
-    "اخرى":         967,   # other
-    "كفالة":        958,   # guarantee
+    "بيع": 947,  # sale
+    "ايجار": 946,  # rental
+    "شركات": 952,  # companies
+    "عمل": 955,  # employment
+    "مقاولة": 960,  # contracting
+    "وكالة": 963,  # agency
+    "رهن": 950,  # mortgage
+    "هبة": 961,  # gift
+    "قسمة": 957,  # division
+    "مقايضة": 965,  # barter
+    "وديعة": 962,  # deposit
+    "قرض": 956,  # loan
+    "عارية": 954,  # loan for use
+    "صلح": 953,  # settlement
+    "زواج": 951,  # marriage
+    "تفاسخ": 969,
+    "حراسة": 948,  # custody/guard
+    "دخل دائم": 949,  # perpetual income
+    "انتفاع": 972,  # usufruct
+    "اخرى": 967,  # other
+    "كفالة": 958,  # guarantee
     "مرتب مدى الحياة": 959,
-    "وصية":         968,   # will
-    "حوالة":        964,   # assignment
+    "وصية": 968,  # will
+    "حوالة": 964,  # assignment
     "ملكية طبقات وشقق": 966,
 }
 
@@ -96,8 +98,7 @@ async def list_contracts(category: str) -> list[dict]:
         return cached
 
     logger.info("lawhub: listing category %s (id=%d)", category, cat_id)
-    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        resp = await client.get(BASE_URL, params={"cat": cat_id}, headers=HEADERS)
+    resp = await _client.get(BASE_URL, params={"cat": cat_id})
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -134,8 +135,7 @@ async def search_contracts(query: str) -> list[dict]:
         return cached
 
     logger.info("lawhub: searching for %r", query)
-    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        resp = await client.get(BASE_URL, params={"s": query}, headers=HEADERS)
+    resp = await _client.get(BASE_URL, params={"s": query})
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -145,7 +145,12 @@ async def search_contracts(query: str) -> list[dict]:
         if "?p=" not in href or href in seen:
             continue
         title = a.get_text(strip=True)
-        if not title or "صيغة" not in title and "عقد" not in title and "اتفاق" not in title:
+        if (
+            not title
+            or "صيغة" not in title
+            and "عقد" not in title
+            and "اتفاق" not in title
+        ):
             continue  # skip non-contract results (laws, regulations, etc.)
         seen.add(href)
         m = re.search(r"[?&]p=(\d+)", href)
@@ -165,8 +170,7 @@ async def fetch_contract_text(post_id: str) -> str:
 
     url = f"{BASE_URL}?p={post_id}"
     logger.info("lawhub: fetching post %s", post_id)
-    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        resp = await client.get(url, headers=HEADERS)
+    resp = await _client.get(url)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -185,7 +189,7 @@ async def fetch_contract_text(post_id: str) -> str:
 
 
 _NOISE_MARKERS = [
-    "📋 أضغط هُنا لنسخ الصيغة",   # page repeats the contract a 2nd time after this — cut it off
+    "📋 أضغط هُنا لنسخ الصيغة",  # page repeats the contract a 2nd time after this — cut it off
     "يمكنك مشاركة المقالة",
 ]
 
@@ -200,7 +204,8 @@ def _clean_article_text(text: str) -> str:
 
     lines = text.split("\n")
     cleaned = [
-        ln for ln in lines
+        ln
+        for ln in lines
         if ln.strip() not in ("x",) and not re.match(r"^.{0,15}\s?ago$", ln.strip())
     ]
     return "\n".join(cleaned).strip()

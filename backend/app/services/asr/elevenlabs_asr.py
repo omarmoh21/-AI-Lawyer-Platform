@@ -18,15 +18,13 @@ async def transcribe(audio_path: str) -> str:
     logger.info("ASR start — %s", audio_path)
 
     with open(audio_path, "rb") as f:
-        content = f.read()
-
-    async with httpx.AsyncClient(timeout=120) as client:
-        resp = await client.post(
-            _URL,
-            headers={"xi-api-key": ELEVENLABS_API_KEY},
-            data={"model_id": STT_MODEL_ID},
-            files={"file": (os.path.basename(audio_path), content, mime)},
-        )
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(
+                _URL,
+                headers={"xi-api-key": ELEVENLABS_API_KEY},
+                data={"model_id": STT_MODEL_ID},
+                files={"file": (os.path.basename(audio_path), f, mime)},
+            )
 
     resp.raise_for_status()
     text = resp.json().get("text", "").strip()

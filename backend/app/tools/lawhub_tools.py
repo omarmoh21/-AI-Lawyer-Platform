@@ -3,7 +3,10 @@ from typing import Annotated
 from langchain_core.tools import tool
 
 from app.services.scraping.lawhub_scraper import (
-    list_categories, list_contracts, search_contracts, fetch_contract_text,
+    list_categories,
+    list_contracts,
+    search_contracts,
+    fetch_contract_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -11,7 +14,10 @@ logger = logging.getLogger(__name__)
 
 @tool
 async def search_lawhub_contracts(
-    query: Annotated[str, "وصف العقد المطلوب بالعربية، مثال: صيانة كمبيوتر، عقد وكالة تجارية، اتفاقية شراكة"],
+    query: Annotated[
+        str,
+        "وصف العقد المطلوب بالعربية، مثال: صيانة كمبيوتر، عقد وكالة تجارية، اتفاقية شراكة",
+    ],
 ) -> str:
     """
     ابحث عن عقد بعينه على الموسوعة القانونية (lawhub.info) باستخدام وصف حر.
@@ -37,7 +43,9 @@ def list_lawhub_categories() -> str:
 
 @tool
 async def search_lawhub_by_category(
-    category: Annotated[str, "اسم فئة العقد بالعربية، مثال: بيع، ايجار، عمل، شركات، رهن، هبة، زواج، قرض"],
+    category: Annotated[
+        str, "اسم فئة العقد بالعربية، مثال: بيع، ايجار، عمل، شركات، رهن، هبة، زواج، قرض"
+    ],
 ) -> str:
     """
     اعرض كل العقود المتاحة داخل فئة معينة من الموسوعة القانونية (lawhub.info).
@@ -55,7 +63,9 @@ async def search_lawhub_by_category(
 
 @tool
 async def fetch_lawhub_contract(
-    post_id: Annotated[str, "رقم المعرف (post_id) الذي ظهر في نتيجة search_lawhub_contracts"],
+    post_id: Annotated[
+        str, "رقم المعرف (post_id) الذي ظهر في نتيجة search_lawhub_contracts"
+    ],
 ) -> str:
     """
     اجلب النص الكامل لعقد معين من الموسوعة القانونية (lawhub.info) باستخدام رقمه المرجعي.
