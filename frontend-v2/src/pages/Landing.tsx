@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, BookText, FilePenLine, MessagesSquare } from 'lucide-react'
+import { ArrowLeft, BookText, FilePenLine, ListChecks, MessagesSquare } from 'lucide-react'
 import Illumination from '../components/ui/Illumination'
 import Reveal from '../components/ui/Reveal'
 import DemoLeaf from '../components/landing/DemoLeaf'
@@ -15,7 +15,8 @@ const steps = [
 const chapters = [
   { icon: MessagesSquare, ord: '١', to: '/consultation', title: 'الاستشارة', body: 'سؤال وجواب قانوني مسنود إلى نصوص التشريع، مع إمكانية إرفاق مستند لتحليله.' },
   { icon: BookText, ord: '٢', to: '/search', title: 'مواد القانون', body: 'عرض النص الحرفي لأي مادة باسم القانون ورقمها، أو البحث بموضوعك.' },
-  { icon: FilePenLine, ord: '٣', to: '/contracts', title: 'تحرير عقد', body: 'صياغة العقود الشائعة بنماذج موثّقة قابلة للتنزيل.' },
+  { icon: ListChecks, ord: '٣', to: '/guides', title: 'دليل الإجراءات', body: 'أدلّة عملية خطوة بخطوة لأكثر الإجراءات القانونية شيوعًا.' },
+  { icon: FilePenLine, ord: '٤', to: '/contracts', title: 'تحرير عقد', body: 'صياغة العقود الشائعة بنماذج موثّقة قابلة للتنزيل.' },
 ]
 
 export default function Landing() {

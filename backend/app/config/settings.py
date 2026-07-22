@@ -16,8 +16,8 @@ ARTICLES_COLLECTION = "articles"
 
 # ── Models ─────────────────────────────────────────────────────
 DENSE_MODEL_NAME = "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2"
-GEMINI_MODEL = "gemini-3.1-flash-lite"
-LLM_MODEL = "gemini-3.1-flash-lite"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
+LLM_MODEL = "gemini-3.5-flash-lite"
 STT_MODEL_ID = "scribe_v2"
 
 # ── Search ─────────────────────────────────────────────────────

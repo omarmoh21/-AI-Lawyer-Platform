@@ -4,6 +4,7 @@ import {
   BookText,
   FilePenLine,
   Home,
+  ListChecks,
   LogOut,
   MessagesSquare,
   ScrollText,
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { to: '/', label: 'الرئيسية', icon: Home, end: true },
   { to: '/consultation', label: 'الاستشارة', icon: MessagesSquare },
   { to: '/search', label: 'مواد القانون', icon: BookText },
+  { to: '/guides', label: 'دليل الإجراءات', icon: ListChecks },
   { to: '/contracts', label: 'تحرير عقد', icon: FilePenLine },
 ]
 
