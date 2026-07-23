@@ -46,6 +46,9 @@ backend/app/services/scraping/_cache/
 *.sqlite3
 backend/app.db
 
+# Built frontend copied into the backend for single-origin serving (Docker only)
+backend/static/
+
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb

@@ -2,10 +2,15 @@
 // WebSocket to the backend proxy (/api/transcribe/stream → ElevenLabs realtime),
 // and reports partial (interim) and final (committed) transcripts as they arrive.
 
-const WS_URL = `${(import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000').replace(
-  /^http/,
-  'ws',
-)}/api/transcribe/stream`
+// In local dev VITE_API_BASE_URL points at the backend (http://localhost:8000),
+// so we just swap http→ws. In production it's empty (frontend served by the
+// backend on the same origin), so we derive the WebSocket origin from the page
+// — which correctly yields wss:// when the site is served over HTTPS.
+const _httpBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const _wsOrigin = _httpBase
+  ? _httpBase.replace(/^http/, 'ws')
+  : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`
+const WS_URL = `${_wsOrigin}/api/transcribe/stream`
 
 const TARGET_RATE = 16000
 const FLUSH_SAMPLES = 3200 // ~200ms at 16kHz — batch frames to cut WS overhead
