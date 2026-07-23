@@ -1,0 +1,46 @@
+# Keep the Docker build context small and avoid leaking local dev state
+# into the image.
+
+# VCS / editor / misc
+.git/
+.github/
+.claude/
+.vscode/
+.idea/
+*.md
+!README.md
+LICENSE
+CHANGELOG.md
+PERFORMANCE_ANALYSIS.md
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+.venv/
+venv/
+.ruff_cache/
+backend/.venv/
+
+# Backend runtime artifacts (never bake local dev state into the image)
+backend/app.db
+backend/app.log
+backend/.env
+backend/app/services/scraping/_cache/
+backend/static/
+
+# Node / frontend build artifacts (built fresh inside the image)
+frontend/node_modules/
+frontend/dist/
+frontend-v2/node_modules/
+frontend-v2/dist/
+frontend/.env
+frontend-v2/.env
+
+# Local-only compose setup (the Space uses the Dockerfile below, not this)
+docker-compose.yml
+
+# Evaluation datasets — not needed at runtime, keeps the image/context small
+evaluation/
+
+# Old frontend — the Space deploys frontend-v2 only
+frontend/
