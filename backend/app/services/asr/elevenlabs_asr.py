@@ -22,7 +22,10 @@ async def transcribe(audio_path: str) -> str:
             resp = await client.post(
                 _URL,
                 headers={"xi-api-key": ELEVENLABS_API_KEY},
-                data={"model_id": STT_MODEL_ID},
+                # Force Arabic — the app's input is always Egyptian legal Arabic,
+                # so pinning the language avoids auto-detect misfires on short
+                # clips or when a Latin term/number slips in.
+                data={"model_id": STT_MODEL_ID, "language_code": "ar"},
                 files={"file": (os.path.basename(audio_path), f, mime)},
             )
 

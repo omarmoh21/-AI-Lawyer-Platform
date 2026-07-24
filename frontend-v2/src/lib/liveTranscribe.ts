@@ -33,11 +33,20 @@ registerProcessor('pcm-processor', PCMProcessor)
 `
 
 function downsample(buffer: Float32Array, inRate: number): Float32Array {
-  if (inRate === TARGET_RATE) return buffer
+  // Only downsample when the capture rate is above target. Average each source
+  // window instead of picking one sample — naive decimation aliases, which
+  // garbles the high-frequency Arabic fricatives (س ش ص ث ف ح خ).
+  if (inRate <= TARGET_RATE) return buffer
   const ratio = inRate / TARGET_RATE
   const outLength = Math.floor(buffer.length / ratio)
   const result = new Float32Array(outLength)
-  for (let i = 0; i < outLength; i++) result[i] = buffer[Math.floor(i * ratio)]
+  for (let i = 0; i < outLength; i++) {
+    const start = Math.floor(i * ratio)
+    const end = Math.min(buffer.length, Math.floor((i + 1) * ratio))
+    let sum = 0
+    for (let j = start; j < end; j++) sum += buffer[j]
+    result[i] = end > start ? sum / (end - start) : (buffer[start] ?? 0)
+  }
   return result
 }
 
@@ -57,8 +66,19 @@ function base64FromBuffer(buffer: ArrayBuffer): string {
   return btoa(binary)
 }
 
-export async function startLiveTranscription(handlers: LiveHandlers): Promise<LiveSession> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+export async function startLiveTranscription(
+  handlers: LiveHandlers,
+  existingStream?: MediaStream,
+): Promise<LiveSession> {
+  // When the caller passes a stream (e.g. it also feeds a MediaRecorder for the
+  // accurate batch pass), we borrow it and must NOT stop its tracks on teardown
+  // — the owner does that. Otherwise we open (and own) our own mic stream.
+  const ownsStream = !existingStream
+  const stream =
+    existingStream ??
+    (await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    }))
 
   const ws = new WebSocket(WS_URL)
   ws.onmessage = (event) => {
@@ -122,7 +142,7 @@ export async function startLiveTranscription(handlers: LiveHandlers): Promise<Li
     } catch {
       /* already torn down */
     }
-    stream.getTracks().forEach((track) => track.stop())
+    if (ownsStream) stream.getTracks().forEach((track) => track.stop())
     try {
       await audioContext.close()
     } catch {

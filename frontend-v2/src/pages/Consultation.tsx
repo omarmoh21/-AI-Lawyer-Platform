@@ -25,8 +25,8 @@ import {
   getSessionMessages,
   reviewDocuments,
   streamChat,
+  transcribeAudio,
 } from '../lib/api'
-import { startLiveTranscription, type LiveSession } from '../lib/liveTranscribe'
 import type { ChatMessageOut } from '../lib/api'
 import type { ConsultationTurn } from '../types'
 
@@ -191,9 +191,9 @@ export default function Consultation() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const activeQuestionRef = useRef<HTMLDivElement>(null)
-  const liveRef = useRef<LiveSession | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
   const questionBaseRef = useRef('')
-  const finalizedRef = useRef('')
 
   const busy = isThinking || streamingTurn !== null || pendingReview !== null
 
@@ -263,52 +263,78 @@ export default function Consultation() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionParam])
 
-  const stopLive = async () => {
-    const live = liveRef.current
-    liveRef.current = null
-    setIsRecording(false)
-    setQuestion(questionBaseRef.current + finalizedRef.current)
-    if (live) {
-      try {
-        await live.stop()
-      } catch {
-        /* already stopped */
+  // Release the mic if we unmount mid-recording (navigating away).
+  useEffect(() => {
+    return () => {
+      const recorder = mediaRecorderRef.current
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stream.getTracks().forEach((track) => track.stop())
+        recorder.stop()
       }
     }
+  }, [])
+
+  // Voice input records the whole utterance, then sends it to the batch
+  // speech-to-text model (POST /transcribe → Scribe scribe_v2, pinned to Arabic).
+  // Batch is used rather than the streaming realtime model because realtime is
+  // the lower-accuracy model — showing its rough live guesses was worse UX than
+  // waiting a moment for the accurate transcript. The mic button's pulse and the
+  // status line already signal that recording is in progress.
+  const stopRecording = () => {
+    // Triggers the recorder's onstop handler, which uploads and transcribes.
+    mediaRecorderRef.current?.stop()
+    mediaRecorderRef.current = null
   }
 
   const handleMic = async () => {
     if (isTranscribing) return
     if (isRecording) {
-      await stopLive()
+      stopRecording()
       return
     }
     setMicError(null)
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setMicError('التسجيل الصوتي غير مدعوم في هذا المتصفح')
       return
     }
 
-    setIsTranscribing(true)
-    questionBaseRef.current = question.trim() ? `${question.trim()} ` : ''
-    finalizedRef.current = ''
     try {
-      const live = await startLiveTranscription({
-        onPartial: (text) => {
-          const sep = finalizedRef.current && text ? ' ' : ''
-          setQuestion(questionBaseRef.current + finalizedRef.current + sep + text)
-        },
-        onFinal: (text) => {
-          if (text) finalizedRef.current += (finalizedRef.current ? ' ' : '') + text
-          setQuestion(questionBaseRef.current + finalizedRef.current)
-        },
-        onError: (message) => {
-          setMicError(message)
-          void stopLive()
-        },
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
-      liveRef.current = live
-      setIsTranscribing(false)
+      questionBaseRef.current = question.trim() ? `${question.trim()} ` : ''
+      audioChunksRef.current = []
+
+      const recorder = new MediaRecorder(stream)
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data)
+      }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop())
+        setIsRecording(false)
+        const chunks = audioChunksRef.current
+        audioChunksRef.current = []
+        if (chunks.length === 0) return
+
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+        setIsTranscribing(true)
+        try {
+          const text = await transcribeAudio(blob)
+          if (text) {
+            setQuestion(questionBaseRef.current + text)
+            requestAnimationFrame(() => textareaRef.current?.focus())
+          }
+        } catch (error) {
+          setMicError(
+            error instanceof Error ? error.message : 'تعذّر تفريغ التسجيل الصوتي',
+          )
+        } finally {
+          setIsTranscribing(false)
+        }
+      }
+
+      mediaRecorderRef.current = recorder
+      recorder.start()
       setIsRecording(true)
     } catch (error) {
       setMicError(
@@ -316,7 +342,6 @@ export default function Consultation() {
           ? error.message
           : 'تعذّر الوصول إلى الميكروفون — تأكد من منح الإذن',
       )
-      setIsTranscribing(false)
     }
   }
 
@@ -640,9 +665,9 @@ export default function Consultation() {
                 className={`mt-2 px-1 text-xs font-semibold ${micError ? 'text-rubric-600' : 'text-ink-soft'}`}
               >
                 {isRecording
-                  ? '● جارٍ التسجيل والتفريغ المباشر... اضغط على الميكروفون للإيقاف'
+                  ? '● جارٍ التسجيل... اضغط على الميكروفون للإنهاء والتفريغ'
                   : isTranscribing
-                    ? 'جارٍ الاتصال بخدمة التفريغ...'
+                    ? 'جارٍ تفريغ التسجيل الصوتي...'
                     : micError}
               </p>
             )}

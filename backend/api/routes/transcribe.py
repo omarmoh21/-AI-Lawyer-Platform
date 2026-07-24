@@ -39,7 +39,7 @@ _REALTIME_PARAMS = (
     "model_id=scribe_v2_realtime"
     "&audio_format=pcm_16000"
     "&commit_strategy=vad"
-    "&language_code=ara"
+    "&language_code=ar"
 )
 
 # Audio container extensions MediaRecorder / browsers commonly produce.
