@@ -1,0 +1,4 @@
+# Evaluation-only dependencies — deliberately NOT part of backend/requirements.txt
+# so they never ship in the deployed Docker image. Install with:
+#   uv pip install -r evaluation/requirements.txt --python <path-to-venv-python>
+deepeval
