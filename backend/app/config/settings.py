@@ -47,6 +47,12 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-insecure-secret-change-me")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 AUTH_COOKIE_NAME = "access_token"
+# When the frontend and backend are served from different registrable domains
+# (e.g. two separate tunnel URLs for public testing), the auth cookie needs
+# SameSite=None + Secure or browsers won't send it on cross-site fetch calls.
+# Local dev keeps SameSite=Lax since localhost:5174 -> localhost:8000 is
+# cross-origin but same-site, where Lax cookies are still sent.
+COOKIE_CROSS_SITE = os.getenv("COOKIE_CROSS_SITE", "false").lower() == "true"
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 
 

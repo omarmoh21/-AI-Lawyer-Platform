@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Scale } from 'lucide-react'
+import { Scale, UserRound } from 'lucide-react'
+import { useAuth } from '../../lib/auth'
 
 const navLinks = [
   { href: '#how-it-works', label: 'كيف تعمل' },
@@ -9,6 +10,7 @@ const navLinks = [
 
 export default function PublicNav() {
   const [scrolled, setScrolled] = useState(false)
+  const { user } = useAuth()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12)
@@ -57,19 +59,33 @@ export default function PublicNav() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-1">
-          <Link
-            to="/login"
-            className="rounded-[4px] px-4 py-2 text-sm font-semibold text-paper/85 transition-colors hover:bg-paper/10 hover:text-paper"
-          >
-            تسجيل الدخول
-          </Link>
-          <span aria-hidden className="mx-1 hidden h-5 w-px bg-field-edge sm:block" />
-          <Link
-            to="/signup"
-            className="rounded-[4px] bg-gold-400 px-4 py-2 text-sm font-semibold text-field-deep transition-colors hover:bg-gold-300"
-          >
-            إنشاء حساب
-          </Link>
+          {user ? (
+            <Link
+              to="/profile"
+              className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-sm font-semibold text-paper/85 transition-colors hover:bg-paper/10 hover:text-paper"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full border border-gold-500/50 bg-paper/5 text-gold-300">
+                <UserRound size={15} />
+              </span>
+              {user.name}
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="rounded-[4px] px-4 py-2 text-sm font-semibold text-paper/85 transition-colors hover:bg-paper/10 hover:text-paper"
+              >
+                تسجيل الدخول
+              </Link>
+              <span aria-hidden className="mx-1 hidden h-5 w-px bg-field-edge sm:block" />
+              <Link
+                to="/signup"
+                className="rounded-[4px] bg-gold-400 px-4 py-2 text-sm font-semibold text-field-deep transition-colors hover:bg-gold-300"
+              >
+                إنشاء حساب
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

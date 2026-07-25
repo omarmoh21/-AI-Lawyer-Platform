@@ -1,16 +1,18 @@
 import logging
 import os
+import time
 import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="langgraph")
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from api.routes import articles, auth, chat, contracts, documents, health, transcribe
+from api.routes import admin, articles, auth, chat, contracts, documents, health, transcribe
+from app.core import metrics
 from app.core.limiter import limiter
 
 logging.basicConfig(
@@ -49,7 +51,24 @@ app.add_middleware(
 )
 app.add_middleware(SlowAPIMiddleware)
 
+
+@app.middleware("http")
+async def track_metrics(request: Request, call_next):
+    # Skip the dashboard's own polling so it doesn't drown out real traffic
+    # in the "requests per minute" stat.
+    if request.url.path.startswith("/api/admin"):
+        return await call_next(request)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000
+    client_ip = request.client.host if request.client else "unknown"
+    metrics.record(client_ip, request.method, request.url.path, response.status_code, duration_ms)
+    return response
+
+
 app.include_router(health.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")

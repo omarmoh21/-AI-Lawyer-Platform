@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Lock, LogIn, Mail } from 'lucide-react'
+import { Lock, LogIn, Mail, UserRound } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/auth/AuthLayout'
 import Field from '../components/ui/Field'
@@ -8,11 +8,12 @@ import { useAuth } from '../lib/auth'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, loginAsGuest } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGuestLoading, setIsGuestLoading] = useState(false)
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -25,6 +26,19 @@ export default function Login() {
       setError('البريد الإلكتروني أو كلمة المرور غير صحيحة')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleGuest = async () => {
+    setError(null)
+    setIsGuestLoading(true)
+    try {
+      await loginAsGuest()
+      navigate('/consultation')
+    } catch {
+      setError('تعذّر الدخول كزائر، حاول مرة أخرى')
+    } finally {
+      setIsGuestLoading(false)
     }
   }
 
@@ -80,10 +94,31 @@ export default function Login() {
           size="lg"
           className="w-full"
           icon={<LogIn size={18} />}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isGuestLoading}
         >
           {isSubmitting ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
         </Button>
+
+        <div className="flex items-center gap-3 text-xs font-semibold text-ink-soft">
+          <span className="h-px flex-1 bg-paper-edge" />
+          أو
+          <span className="h-px flex-1 bg-paper-edge" />
+        </div>
+
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          className="w-full"
+          icon={<UserRound size={18} />}
+          onClick={handleGuest}
+          disabled={isSubmitting || isGuestLoading}
+        >
+          {isGuestLoading ? 'جارٍ الدخول...' : 'الدخول كزائر (بدون حساب)'}
+        </Button>
+        <p className="text-center text-xs leading-relaxed text-ink-soft/70">
+          تجربة سريعة بدون تسجيل — لن يتم حفظ سجلّ المحادثات لحساب الزائر.
+        </p>
       </form>
     </AuthLayout>
   )

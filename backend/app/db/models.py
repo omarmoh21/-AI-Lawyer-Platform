@@ -15,6 +15,7 @@ class User(Base):
     phone = Column(String, nullable=False)
     city = Column(String, nullable=False)
     password_hash = Column(String, nullable=False)
+    is_guest = Column(Boolean, nullable=False, default=False, server_default="0")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     chat_sessions = relationship(

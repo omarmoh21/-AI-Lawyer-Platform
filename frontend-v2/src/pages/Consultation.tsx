@@ -20,6 +20,7 @@ import Button from '../components/ui/Button'
 import Illumination from '../components/ui/Illumination'
 import AnswerText from '../components/ui/AnswerText'
 import ChatHistorySidebar from '../components/consultation/ChatHistorySidebar'
+import { useAuth } from '../lib/auth'
 import {
   extractDocuments,
   getSessionMessages,
@@ -173,6 +174,7 @@ function PageWatermark() {
 }
 
 export default function Consultation() {
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const [turns, setTurns] = useState<ConsultationTurn[]>([])
   const [question, setQuestion] = useState(searchParams.get('q') ?? '')
@@ -674,17 +676,19 @@ export default function Consultation() {
           </div>
         </section>
 
-        <aside className="hidden w-64 shrink-0 lg:block">
-          <ChatHistorySidebar
-            activeSessionId={sessionId}
-            refreshKey={historyRefreshKey}
-            onSelect={handleSelectSession}
-            onNewChat={handleNewChat}
-            onDelete={(id) => {
-              if (id === sessionId) handleNewChat()
-            }}
-          />
-        </aside>
+        {!user?.is_guest && (
+          <aside className="hidden w-64 shrink-0 lg:block">
+            <ChatHistorySidebar
+              activeSessionId={sessionId}
+              refreshKey={historyRefreshKey}
+              onSelect={handleSelectSession}
+              onNewChat={handleNewChat}
+              onDelete={(id) => {
+                if (id === sessionId) handleNewChat()
+              }}
+            />
+          </aside>
+        )}
       </div>
     </AppShell>
   )

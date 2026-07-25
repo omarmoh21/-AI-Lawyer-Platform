@@ -20,5 +20,6 @@ class UserOut(BaseModel):
     email: str
     phone: str
     city: str
+    is_guest: bool
 
     model_config = {"from_attributes": True}

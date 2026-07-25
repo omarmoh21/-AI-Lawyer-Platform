@@ -69,6 +69,7 @@ export interface AuthUser {
   email: string
   phone: string
   city: string
+  is_guest: boolean
 }
 
 export async function signup(
@@ -93,6 +94,14 @@ export async function login(email: string, password: string): Promise<AuthUser> 
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({ email, password }),
+  })
+  return handleResponse<AuthUser>(response)
+}
+
+export async function guestLogin(): Promise<AuthUser> {
+  const response = await fetch(`${API_BASE_URL}/auth/guest`, {
+    method: 'POST',
+    credentials: 'include',
   })
   return handleResponse<AuthUser>(response)
 }
