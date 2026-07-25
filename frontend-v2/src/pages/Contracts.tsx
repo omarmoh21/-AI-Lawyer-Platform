@@ -1,7 +1,7 @@
 // Contract builder — templates (full text + labeled fields) come from the
 // backend (GET /api/contracts/templates), which is the single source of truth
 // mirroring backend/app/templates/contracts.py. The user fills fields, previews
-// the substituted text live, and downloads it as a PDF.
+// the substituted text live, and downloads it as an Arabic (RTL) Word document.
 
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -166,7 +166,7 @@ export default function Contracts() {
                     onClick={handleDownload}
                     disabled={downloading}
                   >
-                    {downloading ? 'جارٍ التنزيل...' : 'تنزيل PDF'}
+                    {downloading ? 'جارٍ التنزيل...' : 'تنزيل ملف Word'}
                   </Button>
                 </div>
                 {downloadError && (

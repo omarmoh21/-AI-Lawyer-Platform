@@ -24,11 +24,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Comma-separated list of extra allowed origins, e.g. for a deployed frontend.
-# The Vite dev server origins are always allowed.
+# The Vite dev server origins are always allowed. Vite auto-increments its port
+# (5174, 5175…) when 5173 is taken, so allow the common range out of the box —
+# otherwise the browser's CORS preflight fails whenever the port shifts.
 _EXTRA_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+_VITE_PORTS = (5173, 5174, 5175)
 ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    *(f"http://localhost:{p}" for p in _VITE_PORTS),
+    *(f"http://127.0.0.1:{p}" for p in _VITE_PORTS),
     *_EXTRA_ORIGINS,
 ]
 

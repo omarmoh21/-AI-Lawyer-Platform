@@ -318,7 +318,7 @@ export async function downloadContract(
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${contractType}.pdf`
+  link.download = `${contractType}.docx`
   document.body.appendChild(link)
   link.click()
   link.remove()

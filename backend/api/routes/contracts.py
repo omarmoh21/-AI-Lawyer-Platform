@@ -3,8 +3,9 @@
 The Contracts page lets a user pick a template and fill in fields entirely
 client-side (see frontend/src/pages/Contracts.tsx — the templates there
 mirror app/templates/contracts.py). This endpoint takes the already-filled
-contract text the user previewed and returns it as a downloadable PDF, so
-the download always matches exactly what was shown on screen.
+contract text the user previewed and returns it as a downloadable Word (.docx)
+document formatted right-to-left for Arabic, so the download always matches
+exactly what was shown on screen and is editable afterward.
 """
 
 import asyncio
@@ -16,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from app.auth.dependencies import get_current_user
 from app.db.models import User
-from app.services.document.pdf_generator import generate_pdf
+from app.services.document.docx_generator import generate_docx
 from app.templates.contracts import (
     FIELD_LABELS,
     REQUIRED_FIELDS,
@@ -76,15 +77,17 @@ async def download_contract(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        pdf_bytes = await asyncio.to_thread(generate_pdf, req.text, req.title)
+        docx_bytes = await asyncio.to_thread(generate_docx, req.text, req.title)
     except Exception:
-        logger.exception("PDF generation failed for user %s", current_user.id)
-        raise HTTPException(500, "تعذّر إنشاء ملف PDF.")
+        logger.exception("DOCX generation failed for user %s", current_user.id)
+        raise HTTPException(500, "تعذّر إنشاء ملف Word.")
 
     safe_type = "".join(c for c in req.contract_type if c.isalnum()) or "contract"
-    filename = f"{safe_type}.pdf"
+    filename = f"{safe_type}.docx"
     return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
+        content=docx_bytes,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
