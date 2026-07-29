@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import csv
 import json
 import re
@@ -17,15 +18,21 @@ EVAL_DIR = Path(__file__).resolve().parent
 
 from qdrant_client import models  # noqa: E402
 
-from app.core.models import qdrant_client, dense_model, bm25_model  # noqa: E402
+from app.core.models import qdrant_client, bm25_model  # noqa: E402
+from app.services.rag.tei_embedder import embed_query  # noqa: E402
 from app.config.settings import COLLECTION_NAME, TOP_K  # noqa: E402
 
 
-def search_topk(query: str, k: int) -> list[dict]:
+async def search_topk(query: str, k: int) -> list[dict]:
     """Same retrieval as hybrid_search, but the final fused result count is
-    a parameter instead of the fixed RERANK_TOP_K, so we can sweep K."""
-    dense_vector = dense_model.encode(query, normalize_embeddings=True).tolist()
-    sparse_vector = list(bm25_model.embed([query]))[0]
+    a parameter instead of the fixed RERANK_CANDIDATES, and this stops at
+    the RRF fusion step (no Cohere rerank) so K can be swept over the raw
+    hybrid-search ranking. Dense embeddings come from the same TEI server
+    production uses, via the same embed_query() call hybrid_search makes."""
+    dense_vector, sparse_vector = await asyncio.gather(
+        embed_query(query),
+        asyncio.to_thread(lambda: list(bm25_model.embed([query]))[0]),
+    )
 
     active_filter = models.Filter(
         must=[
@@ -38,27 +45,29 @@ def search_topk(query: str, k: int) -> list[dict]:
     # what hybrid_search does in production).
     prefetch_limit = max(TOP_K, k)
 
-    results = qdrant_client.query_points(
-        collection_name=COLLECTION_NAME,
-        prefetch=[
-            models.Prefetch(
-                query=dense_vector,
-                using="dense",
-                limit=prefetch_limit,
-                filter=active_filter,
-            ),
-            models.Prefetch(
-                query=models.SparseVector(
-                    indices=sparse_vector.indices.tolist(),
-                    values=sparse_vector.values.tolist(),
+    results = (
+        await qdrant_client.query_points(
+            collection_name=COLLECTION_NAME,
+            prefetch=[
+                models.Prefetch(
+                    query=dense_vector,
+                    using="dense",
+                    limit=prefetch_limit,
+                    filter=active_filter,
                 ),
-                using="bm25",
-                limit=prefetch_limit,
-                filter=active_filter,
-            ),
-        ],
-        query=models.FusionQuery(fusion=models.Fusion.RRF),
-        limit=k,
+                models.Prefetch(
+                    query=models.SparseVector(
+                        indices=sparse_vector.indices.tolist(),
+                        values=sparse_vector.values.tolist(),
+                    ),
+                    using="bm25",
+                    limit=prefetch_limit,
+                    filter=active_filter,
+                ),
+            ],
+            query=models.FusionQuery(fusion=models.Fusion.RRF),
+            limit=k,
+        )
     ).points
 
     return [
@@ -144,16 +153,22 @@ def write_markdown_report(
     lines.append(f"- **K range:** 1 – {max_k}")
     lines.append(f"- **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("")
-    lines.append("## Recall@K")
+    lines.append("## Recall@K / Precision@K")
     lines.append("")
-    lines.append("| K | Hits | Recall@K | |")
-    lines.append("|---|------|----------|---|")
+    lines.append("| K | Hits | Recall@K | | Precision@K |")
+    lines.append("|---|------|----------|---|---|")
     for k in range(1, max_k + 1):
         s = summary[k]
         lines.append(
             f"| {k} | {s['hits']}/{total} | {s['recall']:.2%} | "
-            f"`{render_bar(s['recall'])}` |"
+            f"`{render_bar(s['recall'])}` | {s['precision']:.2%} |"
         )
+    lines.append("")
+    lines.append(
+        "Precision@K = recall@K / K here, since each query has exactly one "
+        "relevant article — it necessarily falls as K grows (spreading one "
+        "relevant hit across more slots), which is expected, not a regression."
+    )
     lines.append("")
     lines.append("## Summary")
     lines.append("")
@@ -197,7 +212,7 @@ def find_rank(
     return None
 
 
-def main():
+async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--dataset", default=str(EVAL_DIR / "legal_rag_eval_dataset_full.csv")
@@ -225,7 +240,7 @@ def main():
         target_law = row["law_name"]
 
         try:
-            retrieved = search_topk(query, args.max_k)
+            retrieved = await search_topk(query, args.max_k)
         except Exception as e:
             print(f"[{i}/{total}] search failed: {e}", file=sys.stderr)
             ranks.append(None)
@@ -255,13 +270,19 @@ def main():
         if i % 25 == 0:
             print(f"[{i}/{total}] processed", file=sys.stderr)
 
-    print(f"\n=== Recall@K (K = 1..{args.max_k}), n = {total} ===")
+    print(f"\n=== Recall@K / Precision@K (K = 1..{args.max_k}), n = {total} ===")
     summary = {}
     for k in range(1, args.max_k + 1):
         hits = sum(1 for r in ranks if r is not None and r <= k)
         recall = hits / total
-        summary[k] = {"hits": hits, "recall": round(recall, 4)}
-        print(f"K={k:>2}  hits={hits:>4}/{total}  recall@{k} = {recall:.4f}")
+        # Exactly one relevant article per query, so each query contributes
+        # either 1/k (its hit landed in the top k) or 0 to precision@k —
+        # averaged, that's just recall@k / k. Reported explicitly anyway
+        # since it makes the recall/precision trade-off as K grows visible
+        # at a glance instead of requiring the reader to do the division.
+        precision = recall / k
+        summary[k] = {"hits": hits, "recall": round(recall, 4), "precision": round(precision, 4)}
+        print(f"K={k:>2}  hits={hits:>4}/{total}  recall@{k} = {recall:.4f}  precision@{k} = {precision:.4f}")
 
     # Mean Reciprocal Rank — more informative than any single K, worth
     # tracking alongside the sweep since it summarizes rank quality, not
@@ -297,4 +318,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
