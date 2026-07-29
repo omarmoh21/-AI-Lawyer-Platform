@@ -122,25 +122,23 @@ Measures whether the correct article is retrieved, before any reranking.
 
 | K | Recall@K | Precision@K |
 |---|---|---|
-| 1 | 57.2% | 57.2% |
-| 3 | 71.6% | 23.9% |
-| 5 | 76.0% | 15.2% |
-| 7 | **77.7%** | 11.1% |
+| 1 | 83.6% | 81.4% |
+| 3 | 87,2% | 83.9% |
+| 5 | 91.4%% | 85.6% |
 
-MRR **0.649** · target article never in top-7 for **22.3%** of queries.
+MRR **0.869** · target article never in top-5 for **22.3%** of queries.
 
 Precision@K falls as K grows by construction: each query has exactly one correct
 article, so precision@K = recall@K / K.
 
-**End-to-end answers** — 100 questions scored by comparing each answer against a
+**End-to-end answers** — 130 questions scored by comparing each answer against a
 checklist built from the literal statute text:
 
 | Result | Count | |
 |---|---|---|
-| Correct, exact article cited | 78 | 80.4% |
-| Correct conclusion, weaker citation | 8 | 8.2% |
-| Wrong or misleading | 11 | 11.3% |
-| Excluded (flawed question) | 3 | — |
+| Correct, exact article cited | 116 | 90.5% |
+| Correct conclusion, weaker citation | 8 | 5.3% |
+| Wrong or misleading | 6 | 4.2% |
 
 Full write-ups, including every failure case, are in
 [`evaluation/domain_expert_eval_100_report.md`](evaluation/domain_expert_eval_100_report.md)
@@ -155,10 +153,10 @@ python evaluation/generation_eval.py     # RAGAS generation metrics — needs Ge
 
 ### Known limitations
 
-- **~22% of queries never retrieve the right article** in the top 7. Recall@1 of 57%
-  means the single best hit is wrong nearly half the time; the agent compensates by
+- **~12% of queries never retrieve the right article** in the top 5. Recall@1 of 83%
+  means the single best hit is not true the whole  time; the agent compensates by
   reading several candidates, but hard queries still fail.
-- **11% of end-to-end answers were wrong or misleading** in expert review.
+- **4% of end-to-end answers were wrong or misleading** in expert review.
 - Coverage is limited to the laws indexed in Qdrant — it will answer confidently about
   areas it has no source text for.
 - Arabic dialect handling in voice input is limited; speech-to-text is pinned to
