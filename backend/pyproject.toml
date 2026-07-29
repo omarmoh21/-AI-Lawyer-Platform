@@ -7,25 +7,38 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
+    "websockets",
     "python-multipart",
-    "gradio",
+    "sqlalchemy",
+    "alembic",
+    "bcrypt",
+    "python-jose[cryptography]",
+    "email-validator",
     "langchain-google-genai",
     "langchain-core",
     "langgraph",
     "google-genai",
     "qdrant-client",
     "fastembed",
-    "sentence-transformers",
-    "torch",
+    "cohere",
     "Pillow",
-    "requests",
-    "python-dotenv",
+    "pymupdf",
     "python-docx",
     "beautifulsoup4",
+    "requests",
+    "httpx",
+    "python-dotenv",
+    "slowapi",
+    "psutil",
 ]
 
 [dependency-groups]
 dev = [
     "pre-commit>=4.6.0",
     "pytest>=8.0.0",
+    # Only needed by scripts/tei_parity_check.py, which compares TEI's
+    # embeddings against a locally-loaded model. Kept out of the runtime
+    # dependencies because torch alone is ~2GB.
+    "torch",
+    "sentence-transformers",
 ]

@@ -1,26 +1,44 @@
+# Web framework
 fastapi
 uvicorn[standard]
 websockets
 python-multipart
+
+# Database & auth
 sqlalchemy
 alembic
 bcrypt
 python-jose[cryptography]
 email-validator
-gradio>=4.0
+
+# Retrieval: Qdrant + BM25 sparse vectors, optional Cohere reranking.
+# Dense embeddings are served out-of-process by the TEI container
+# (see docker-compose.yml), so no local embedding model is needed at runtime.
 qdrant-client
 fastembed
-sentence-transformers
-torch
+cohere
+
+# LLM / agents
 langchain-google-genai
 langchain-core
 langgraph
 google-genai
+
+# Documents: OCR (pymupdf renders PDF pages), Word export, contract scraping
 pillow
 pymupdf
 python-docx
+beautifulsoup4
+
+# Runtime utilities
 python-dotenv
 httpx
-slowapi
 requests
-cohere
+slowapi
+psutil
+
+# NOTE: torch + sentence-transformers are NOT listed here on purpose. They are
+# only needed by scripts/tei_parity_check.py (a dev-only check that compares TEI
+# output against a local model) and would otherwise pull ~2GB into every install.
+# Install them separately if you need to run that script:
+#     pip install torch sentence-transformers
