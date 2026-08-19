@@ -16,3 +16,27 @@ services:
       - "--model-id"
       - "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2"
     restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: backend
+    env_file: ./backend/.env
+    environment:
+      # Overrides the .env value so the backend reaches the embedder by its
+      # Docker service name instead of localhost.
+      TEI_EMBED_URL: http://tei-embedder:80/embed
+    volumes:
+      # Persists the SQLite DB across container rebuilds.
+      - ./backend/app.db:/app/app.db
+    depends_on:
+      - tei-embedder
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend-v2
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
